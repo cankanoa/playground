@@ -1,0 +1,168 @@
+---
+title: "Homework8"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Question 1
+
+Bolger et al (1997) investigated the impacts of habitat fragmentation on the occurrence of native rodents.  Modeled the presence/absence of any species of native rodent (except *Microtus californicus*) against three predictor variables: distance (meters) to nearest source canyon (DISTX), age (years) since fragment was isolated by urbanization (AGE), and percentage of fragment area covered in shrubs (PERSHRUB)
+
+  * RV = RODENTSP
+  * EVs = DISTX, AGE, PERSHRUB
+
+```{r}
+library(rms)
+library(car)
+library(MuMIn)
+library(ggplot2)
+
+# Data
+ds <- readxl::read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/bolger.xlsx')
+
+PERSHRUB <- ds$PERSHRUB
+DISTX <- ds$DISTX
+AGE <- ds$AGE
+RODENTSP <- as.factor(ds$RODENTSP)
+
+# 1) Check collinarity of explanatory variables cor(bolger[,1:3])
+cor(ds[,1:3])
+# Pass, keep all variables
+
+# 2) Specify a full logistic model (note- keep all variables that correlate below 0.80)
+glm1 <- glm(RODENTSP ~ PERSHRUB + DISTX + AGE, family = binomial, data = ds)
+
+#use function "summary" to summarize model
+summary(glm1)
+
+# 3) examine for overdispersion (Residual deviance/residual df)
+data.lrm <- lrm(RODENTSP ~ PERSHRUB + DISTX + AGE, data = ds, y = TRUE, x = TRUE)
+resid(data.lrm, type = "gof")
+
+
+# 4) Check for linearity
+crPlots(glm1, ask = FALSE)
+# Pass, data points are generally linear
+
+# 5) Check for influential observations
+plot(glm1, which = 5)
+# Pass, does not cross cooks lines
+
+# 6) interpret best model and examine odds ratio for presence of rodents (based on the full
+# model) *use exp(coef(bolger1)) to get odds ratios
+exp(coef(glm1))
+# The odds ratios show that shrub cover is the primary factor influencing rodent presence. 
+# For each 1% increase in shrub cover, the odds of finding native rodents increase by about 
+# 10%. Distance to the nearest canyon and fragment age show minimal influence, suggesting they 
+# do not meaningfully alter the likelihood of rodents
+
+# 7) use AIC to determine the best model (use functions “dredge”, “model.avg”, “summary” and 
+# “importance” from library MuMIn), and using model below: bolger2<-glm(RODENTSP~DISTX+AGE+PERSHRUB, binomial, bolger, na.action="na.fail")
+glm2<-glm(RODENTSP~DISTX+AGE+PERSHRUB, binomial, na.action="na.fail")
+glm2.all <- dredge(glm2)
+summary(glm2.all)
+# Model averaging is not recommended as AIC > 2, however, for the sake of homework, 
+# I will perform it.
+
+avg_mod <- model.avg(glm2.all, subset = delta < 4)
+summary(avg_mod)
+sw(glm2.all)
+# PERSHRUB is by far the most important variable.
+
+#use deletion tests to compare best model with the next best model(s) as a final way to 
+# determine whether to include specific explanatory variables (see Textbook example for this)  
+glm_full <- glm(RODENTSP ~ PERSHRUB + DISTX + AGE, family = binomial, data = ds)
+glm_no_shrub <- update(glm_full, ~ . - PERSHRUB)
+glm_no_age <- update(glm_full, ~ . - AGE)
+glm_no_dist <- update(glm_full, ~ . - DISTX)
+
+anova(glm_full, glm_no_shrub, test = "Chisq")
+anova(glm_full, glm_no_age, test = "Chisq")
+anova(glm_full, glm_no_dist, test = "Chisq")
+# The results of the anovas show that AGE and DISTX do not meaningfully reduce the model 
+# performance, while PERCHRUB is significantly (P = 0.001991). This indicates that the 
+# most parsimonious model only includes PERCHRUB.
+
+# Re-interpret best model based on model averaging results
+# No model averaging is required here.
+
+# extra- 2 pts, Produce a graph that illustrates the relationship between percent 
+# shrub cover and presence/absence of rodents
+ds$pred <- predict(glm1, type = "response")
+ggplot(ds, aes(PERSHRUB, RODENTSP)) +
+  geom_jitter(height = 0.05) +
+  geom_line(aes(y = pred),)
+
+```
+
+# Question 2
+
+A study was conducted to determine if wing molt in Amakihi (N or Y) was related to seasonal period (1-6), elevation(low or high), and sex. Use the amakihi dataset to determine the best fitting model for predicting wing molt in this bird. 
+
+```{r}
+
+# a) ensure that wing.molt and sex are being read as categorical variables by R 
+# (and change them if they aren't (period should be a continuous variable here)
+ds <- readxl::read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/amakihi.xlsx')
+
+period <- ds$period
+elevation <- as.factor(ds$elevation)
+sex <- as.factor(ds$sex)
+molt <- as.factor(ds$`wing molt`)
+
+# b) create a full model for wing.molt, including an interaction term between elevation and sex
+amakihi.lrm <- lrm(molt ~ period + elevation + sex + elevation*sex, data = ds, y = TRUE, x = TRUE)
+
+# c) consider checking diagnostics for this model. Based on what we have discussed in lecture, what (if any) diagnostics are best?
+resid(amakihi.lrm, type = "gof")
+# Lack of good fit as we have a high p value. Dont really need to run 
+# anything else, we need to fix it.
+
+# d) use functions from library MuMIn to assess the best fitting model 
+# from the global model. Provide comparison of AICc values, model weights, and model averages in your assessment.
+glm.full <- glm(molt ~ period + elevation + sex + elevation*sex, family = binomial, na.action="na.fail")
+dredged <- dredge(glm.full)
+summary(dredged)
+sw(dredged)
+head(dredged, 5)
+ # The summary dredge table shows AICc and model weights. It shows that 
+# period is the best predictor for molt, whereas, elevation, sex, and their 
+# interaction contribute little to the model performance. The second summary, 
+# sum of weights, also confirms this.
+
+# e) Assess the assumption of lack of over-dispersion and use a deletion test 
+# to compare the fit of the best model by AICc to the second best model by AICc
+best.model <- get.models(dredged, 1)[[1]]
+pp <- sum(resid(best.model, type = "pearson")^2)
+
+1 - pchisq(pp, best.model$df.residual)
+
+1 - pchisq(best.model$deviance, best.model$df.residual)
+
+pp / best.model$df.residual
+# Pearsons X^2 (P = 0.99) shows no over dispersion and is surprisingly high. 
+# Dispersion parameter (0.81) indicates no over dispersion.
+
+# Check if we need to average
+head(dredged, 5)
+avg_mod <- model.avg(dredged, subset = delta < 2)
+summary(avg_mod)
+# We model average because models have delta less than two. 
+
+exp(cbind(OR = coef(avg_mod)))
+
+# f) summarize your best fitting model, report P values, and explain and 
+# interpret the results in terms of odds ratios.
+
+# The averaged results indicate that period is the only significant predictor 
+# of wing molt. The effects of sex and elevation are weak and not significant. 
+# The best model is logit(p) = –4.07 + 0.43 (period) where both the intercept 
+# (–4.07 +- 0.51 SE, p < 0.001) and the period (0.43 +- 0.10 SE, z = 4.38, p < 0.001) 
+# were significant. The odds ratio of molt increased by 54% for each one-unit increase 
+# in period (OR = 1.54), indicating that amakihi were more likely to molt later 
+# in the season.
+
+```
+
+

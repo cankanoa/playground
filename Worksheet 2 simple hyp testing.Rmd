@@ -1,0 +1,223 @@
+---
+title: "Worksheet 2 CBES 677"
+author: "Natalie Graham"
+date: "2025-08-01"
+output: pdf_document:
+          latex_engine: xelatex
+---
+
+### <p align="center">One and 2 sample T tests plus diagnostics (histograms and boxplots) and non-parametric equivalents in R.</p>
+
+Recommended reading: 
+- Simple hypothesis testing, pages 134-139
+- 6.8 Key for simple hypothesis testing, pages 140-142
+- 6.9 Worked examples of real biological data sets, pages 142-150
+
+Posit workbench link:
+https://data.uhh.hawaii.edu/
+
+# Import a dataset
+
+First, lets use R studio to import a dataset (fisheggs1). To import data from an excel spreadsheet into R Studio, use the “import dataset” tab in the upper portion of the Rstudio Environment pane under File, then choose "from Excel". You can then browse to the location of your spreadsheet. If you are in Posit Workbench you will need to upload the data file first. Either way, you might like to organize your files so you have a "data" file for all your datasets. 
+
+I’ve also made a code chunk for the library to read in the excel file and a seperate code chunk for your data files. It is good practice to create two code chunks in the beginning of each file so you can organize your libraries and data at the top. 
+
+Note: You must remember to assign it to an object yourself even if you use the 'import data' button shortcut. You have to run the code to activate any library you use each time (but you only have to install the library one time).
+
+Libraries
+```{r}
+library(readxl)
+
+
+
+```
+
+Read in data
+```{r}
+fisheggs1 <- read_excel("~/Homework1/data/fisheggs1.xls")
+
+```
+# Once imported, you can verify what is in this dataset by calling it up using the object name you assigned. I've called mine "fisheggs1". You can also use View(fisheggs1) to see it in the data preview pane. 
+
+Note: Make sure that you DO NOT have View() in your code anywhere (either type it in the console or comment it out in your code chunk) or your document won't be able to knit.
+
+```{r}
+fisheggs1
+```
+
+Remember that so far, any column only exists in relation to the dataframe it is part of:
+
+```{r}
+fisheggs1$eggs
+
+#The names() function is useful to see what columns of data R recognizes:
+names(fisheggs1)
+```
+
+# Check data distribution 
+One of the first things you should always do with new data is *check assumptions* by examining the way the data is distributed. Two useful ways to graphically examine the assumptions (of normality, homogeneity of variance etc.) for simple statistical tests we have covered so far include boxplots and histograms. You can play around with the orientation of the boxplot, the x and y labels, and the number of “breaks” in the histogram with the functions specified below:
+
+# Boxplots
+You can click through the graphs in the Rstudio viewer
+```{r}
+boxplot(fisheggs1$eggs)
+
+boxplot(fisheggs1$eggs, horizontal = T\)
+
+boxplot(fisheggs1$eggs, ylab = "eggs")
+```
+
+# Renaming columns
+Note you can make typing quicker by specifying a name for each column, eg.:
+```{r}
+
+eggs<-fisheggs1$eggs  
+
+salinity <- fisheggs1$salinity
+
+boxplot(eggs~salinity) 
+```
+
+# QQnorm
+
+Use qqnorm(x) to plot quantiles of x with respect to values of x as expected under the normal distribution. (remember- relatively straight line of quantiles indicates normality
+Note: *each variable* needs to be investigated for violation of assumptions 
+
+```{r}
+colnames(fisheggs1)
+qqnorm(fisheggs1$temp)
+qqnorm(fisheggs1$eggs)
+
+```
+# Histogram
+and you can plot a histogram and specify the number of “breaks” in the histogram with the functions below:
+```{r}
+hist(eggs, breaks = 6)
+
+hist(eggs, breaks = 4)
+```
+
+We learned the apply function in the last class- it is useful here:
+```{r}
+tapply(fisheggs1$temp, fisheggs1$salinity, summary)
+
+# alternatively assign them first to variable names
+temp<-fisheggs1$temp
+salinity<-fisheggs1$salinity
+tapply(temp, salinity, summary)
+```
+
+# Scatterplots
+We will spend a lot more time constructing scatterplots showing best fitting lines. Here we will learn the basics of making a simple scatterplot, as well as how to add labels and control the length of the axes. Remember that graphs you get with the plot() function differ depending on the type of data you are specifying. If your columns are both continuous variables, then plot(x,y) results in a scatterplot.
+
+```{r}
+# notice what is different with the presentation of each graph below
+plot(fisheggs1$temp, fisheggs1$eggs)
+
+plot(fisheggs1$temp, fisheggs1$eggs, xlab = "eggs", ylab = "temperature")
+
+plot(fisheggs1$temp, fisheggs1$eggs, xlim = NULL, ylim = c(0,50), xlab = "eggs", ylab = "temperature")
+```
+
+# One sample t test
+To perform a one-sample t test, comparing the mean of our sample to a hypothesized mean of 25:
+```{r}
+t.test(fisheggs1$eggs, mu = 25)
+```
+The results of the one sample t test automatically give the mean but it is good practice to also report the standard deviation so the reader knows the variation around the mean.
+```{r}
+sd(fisheggs1$eggs)
+```
+To write the results of your One Sample t-test in a formal report, you can follow this structure:
+
+> A one-sample t-test was conducted to determine whether the mean number of eggs in the sample differed from 25. The results indicated that the mean number of eggs (M = 20.93, SD = 4.69) was significantly different from 25, t(14) = -3.35, p = 0.0047. The 95% confidence interval for the mean difference was [18.33, 23.53].
+
+# The one sided alternatives are below:
+
+```{r}
+t.test(fisheggs1$eggs, mu = 25, alternative = "greater")
+```
+When reporting the results of a one-sample t-test with a one-sided alternative hypothesis, you should clearly state the direction of the test and the results. 
+
+> A one-sample t-test was conducted to determine whether the mean number of eggs in the sample was greater than 25. The results indicated that the mean number of eggs (M = 20.93, SD = 4.69) was not significantly greater than 25, t(14) = -3.35, p = 0.998. The 95% confidence interval for the mean difference was [18.80, ∞].
+
+```{r}
+t.test(fisheggs1$eggs, mu = 25, alternative = "less")
+```
+
+> A one-sample t-test was conducted to determine whether the mean number of eggs in the sample was less than 25. The results indicated that the mean number of eggs (M = 20.93, SD = 4.69) was significantly less than 25, t(14) = -3.35, p = 0.0024. The 95% confidence interval for the mean difference was [-∞, 23.07].
+
+# Transform to meet assumptions
+Note: if you decided that you need to transform the column “temp” to meet the assumption of normality you can add the transformed data to your fisheggs1 spreadsheet but assigning it to the dataframe as follows. (Take a look again at qqnorm(temp) and hist(temp)). 
+
+We will talk (a lot) more about data transformations. Here we are using natural log. Recheck qqnorm and hist with the new logtemp variable (its better)
+> qqnorm(fisheggs1$logtemp)
+> hist(fisheggs1$logtemp)  
+
+```{r}
+# assess the fit
+qqnorm(temp)
+hist(temp)
+
+# assigning log(fisheggs1$temp) to a new column in the df called "logtemp"
+fisheggs1$logtemp<-log(fisheggs1$temp)
+
+# recheck the fit
+qqnorm(fisheggs1$logtemp, breaks=11)
+hist(fisheggs1$logtemp, breaks=5)
+
+```
+
+Note: We would work with the transformed temp data for further analyses including that variable
+
+Okay now back to t tests!
+
+# Two sample t test
+Now- lets perform a two-sample t test on eggs at each of the two levels of salinity.
+
+First we will do a Welch test (unequal variances-- when the spread of the data in the two groups is different), then a pooled (equal variances) test
+
+```{r}
+# recall we assigned the variable shortcuts previously
+# eggs<-fisheggs1$eggs
+# salinity<-fisheggs1$salinity
+t.test(eggs~salinity)
+
+# note if we hadn't assigned those variable shortcuts we could just call the data using the dataframe$column method
+t.test(fisheggs1$eggs ~ fisheggs1$salinity)
+```
+When reporting the results of a Welch Two Sample t-test, you should clearly state the comparison being made and the results including the sd for each group (in this case lo and high)
+
+# sd for each group 
+First subset the groups by levels of salinity then calculate the sd for the eggs column
+```{r}
+lo_salinity <- subset(fisheggs1, salinity == "lo")
+hi_salinity <- subset(fisheggs1, salinity == "hi")
+sd(lo_salinity$eggs)
+sd(hi_salinity$eggs)
+```
+
+> A Welch Two Sample t-test was conducted to compare the mean number of eggs between the “hi” and “lo” salinity groups. The results indicated that there was no significant difference in the mean number of eggs between the “hi” salinity group (M = 20.43, SD = 4.86) and the “lo” salinity group (M = 21.38, SD = 4.84), t(12.72) = -0.38, p = 0.712. The 95% confidence interval for the difference in means was [-6.38, 4.49].
+
+# Pooled t test
+```{r}
+t.test(eggs~salinity, var.equal = T)
+```
+# Comparing the differences between two independent samples 
+
+And finally, the Mann-Whitney test (the non-parametric version of the two-sample T). Another name for the Mann-Whitney is the Wilcoxon rank-sum test. This is the test you use when you are comparing two independent samples, when the sample distributions are not normally distributed and the sample sizes are small (n<30).
+
+Note the Wilcoxon rank-sum test (Mann-Whitney U test) does not test the means of the groups. Instead, it tests the medians or the ranks of the groups.
+
+```{r}
+wilcox.test(eggs~salinity)
+```
+
+# one sided test
+specifying `alternative = "less"` in the `wilcox.test` function in R indicates that you are performing a one-sided test. Specifically, it tests the alternative hypothesis that the median of the first group (in this case, "hi" salinity) is less than the median of the second group (in this case, "lo" salinity).
+
+```{r}
+wilcox.test(eggs~salinity, alternative = "less")
+```
+Report the results as follows
+> A Wilcoxon rank-sum test with continuity correction was conducted to determine whether the median number of eggs in the “hi” salinity group was less than the median number of eggs in the “lo” salinity group. The results indicated that there was no significant difference between the medians, W = 25, p = 0.386.

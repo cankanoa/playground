@@ -1,0 +1,280 @@
+---
+title: "Homework6"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+library('car')
+library("ggplot2")
+```
+
+# Question 1
+
+Given these results of a regression:
+            Coeff       se      t       P
+Intercept 	1.609 	1.799 	0.894 	0.135 
+P/A ratio 	0.006 	0.004 	1.654 	0.073 
+Scorpions 	-0.746 	0.060 	-12.387 	<0.001 
+
+The r2 from the regression was 0.73. 
+
+Answers:
+
+(a) Besides normality and homogeneity of variance of the response variable, what other assumptions are important before we can assess each of the tests on regression slopes? 
+
+These are all the assumptions of additive models: 
+ - Independence of observations and residuals
+ - Effects of predictors combine additively on the response
+ - Relationship between each predictor and the response is linear
+ - Homoscedasticity variance of residuals is constant across the range of fitted values
+ - Residuals should be approximately random
+ - Residuals should be approximately normally distributed
+ - Multicollinearity predictors should not be highly correlated
+
+(b) How would you interpret the regression slope for P/A ratio in this analysis?
+
+I would interpret the regression slope of 0.006 as indicating that the P/A ratio is not highly indicative of the density of spiders, especially given the high, and not significant, p value of 0.073. 
+
+(c) Write out the complete regression equation. 
+
+log(y) = 1.609 + 0.006(P/A ratio) - 0.746 (Scorpions) + e
+
+(d) What is the r2 value telling us?
+
+An r2 of 0.73 is telling us that the model accounts for 73% of a variance of the response variable (spider density).
+
+e) How would you interpret these results?
+
+It would be helpful to get the full model results to fully indicate results (F-statistic), however, from the provided information, we can assume that the whole model is significant as the scorpions predict the density of spiders. However, the P/A ratio does not seem to add much information to the model. Biologically, I would interpret these results as indicating that scorpions influence the density of spiders and the P/A ratio doesn't not have a significant influence.
+
+# Question 2
+
+Import data
+
+```{r}
+input_ds <- readxl::read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/Paruelo.xlsx')
+
+# Dependent variable
+# abundance of C3 plants
+C3 <- input_ds$C3
+C3log <- log1p(input_ds$C3)
+
+#Independent variables
+#Mean Annual Precipitation (MAP)
+MAP <- input_ds$MAP
+
+#Mean Annual Temperature (MAT)
+MAT <- input_ds$MAT
+
+#MAP that fell in June, July, and August (JJAMAP)
+JJAMAP <- input_ds$JJAMAP
+
+# MAP that fell in Dec, Jan, Feb (DJFMAP)
+DJFMAP <- input_ds$DJFMAP
+
+# Other
+LONG <- input_ds$LONG
+LAT <- input_ds$LAT
+
+ds <- data.frame(
+  C3 <- input_ds$C3,
+  MAP <- input_ds$MAP,
+  MAT <- input_ds$MAT,
+  JJAMAP <- input_ds$JJAMAP,
+  DJFMAP <- input_ds$DJFMAP
+)
+
+# Log data
+dslog <- data.frame(
+  C3 = log1p(input_ds$C3),
+  MAP = input_ds$MAP,
+  MAT = input_ds$MAT,
+  JJAMAP = input_ds$JJAMAP,
+  DJFMAP = input_ds$DJFMAP
+)
+
+```
+
+Assumptions
+
+```{r}
+# Model
+model <- lm(C3log ~ MAP + MAT + JJAMAP + DJFMAP)
+
+# Normality
+vars <- list(MAP = MAP, MAT = MAT, JJAMAP = JJAMAP, DJFMAP = DJFMAP)
+hist(C3)
+hist(log(C3))
+for (var in vars) {
+  hist(var)
+}
+
+# Independence of observations and residuals
+#Pass, assumed to be good in research design
+
+# Effects of predictors combine additively on the response
+# Pass, assumed to be good
+
+# Relationship between each predictor and the response is linear
+scatterplotMatrix(ds)
+scatterplotMatrix(dslog)
+# Pass, logging response variable improves relationship to independent variables by increasing the range of values.
+
+# Multicollinearity predictors should not be highly correlated
+cor(dslog)
+vif(model)
+# Pass, as correlations under 90% and VIF under 5.
+
+# Homoscedasticity variance of residuals is constant across the range of fitted values
+summary(model)
+plot(model)
+# Pass, residuals dont look drastically skewed to one side on the residuals vs fitted figure.
+
+# Residuals should be approximately normally distributed
+# Pass, residuals dont drastically move from the qq norm center line.
+
+```
+
+Test
+
+```{r}
+# Model
+model1 <- lm(C3log ~ MAP + MAT + JJAMAP + DJFMAP)
+
+# Interaction term model
+model2 <- lm(C3log ~ MAP + MAT + JJAMAP + DJFMAP + MAP*MAT)
+
+# Check interaction term model
+vif(model2)
+# Fail, VIF too high
+
+# New model with scaling
+model3 <- lm(scale(C3log) ~ scale(MAP) + scale(MAT) + scale(JJAMAP) + scale(DJFMAP) + scale(MAP)*scale(MAT))
+vif(model3)
+# Pass multicolinearity, as VIF is low
+
+# Check impact of variables on model
+plot(model3)
+influence.measures(model3)
+avPlots(model3)
+# Pass, fitted vs residuals looks reasonably random, qq of residuals looks normal\; avPlot shows MAT is influential, thats fine.
+
+# model output
+summary(model3)
+
+# Test effect of centering MAT on model
+scatterplot(C3log ~ MAT)
+scatterplot(C3log ~ scale(MAT))
+# centering data only changes the scale not the data itself
+```
+
+Results
+
+The primary take-away from the model is that mean annual temperature was the only statistically significant variable that influences the abundance of C3 plants throughout the 73 cites. The predictors influenced this model C3log = –0.003 + 0.091×MAP – 0.577×MAT – 0.196×JJAMAP – 0.185×DJFMAP + 0.008×(MAP×MAT) as follows: MAP: slope = 0.091 ± 0.148, t(67) = 0.62, p = 0.54; MAT: slope = –0.577 ± 0.112, t(67) = –5.15, p < 0.001; JJAMAP: slope = –0.196 ± 0.186, t(67) = –1.06, p = 0.30; DJFMAP: slope = –0.185 ± 0.199, t(67) = –0.93, p = 0.36; MAP×MAT: slope = 0.008 ± 0.105, t(67) = 0.08, p = 0.94. The resulting model accounted for 25% of the variability in C3 plat abundance (R2 = 0.309, adjusted R2 = 0.257, F(5, 67) = 5.99, p < 0.001).
+
+
+# Question 3
+
+Import data
+
+```{r}
+input_ds <- readxl::read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/dodson.xlsx')
+
+# Response variable
+Fish <- input_ds$Fish
+
+# Explanatory variables
+Area <- input_ds$Area
+PPR <- input_ds$PPR
+Cladoc <- input_ds$Cladoc
+Copepods <- input_ds$Copepods
+# and the interaction between Cladoc and Copepods
+
+# Log Explanatory variables
+Fishlog <- log1p(Fish)
+Arealog <- log1p(Area)
+PPRlog <- log1p(PPR)
+Cladoclog <- log1p(Cladoc)
+Copepodslog <- log1p(Copepods)
+
+# Other
+Lake <- input_ds$Lake
+```
+
+Research question
+
+What influence do the explanatory variables have on species richness of fish?
+
+Statistical method
+
+Multiplicative linear model
+
+Hypothesis statements
+
+H0: None of the predictors (Area, PPR, Cladoc, and Copepods) and the interaction between Cladoc and Copepods have a significant effect in fish abundance.
+H1: At least one of the predictors (Area, PPR, Cladoc, and Copepods) and/or the interaction between Cladoc and Copepods have a significant effect in fish abundance.
+
+Assumptions
+
+```{r}
+# Preliminary model
+model <- lm(Fishlog ~ Arealog + PPRlog + Cladoclog + Copepodslog + Cladoclog*Copepodslog)
+
+# Normality
+vars <- list(Area, PPR, Cladoc, Copepods)
+for (var in vars) {
+  hist(var)
+}
+
+# Independence of observations and residuals
+# Pass, assumed to be true
+
+# Effects of predictors combine multiplicatively on the response
+# Pass, assumed to be true
+
+# Relationship between each predictor and the response is linear
+scatterplotMatrix(data.frame(Fish, Area, PPR, Cladoc, Copepods))
+scatterplotMatrix(data.frame(Fishlog, Arealog, PPRlog, Cladoclog, Copepodslog))
+# Pass, plots generally look linear
+
+# Multicollinearity predictors should not be highly correlated
+cor(data.frame(Fishlog, Arealog, PPRlog, Cladoclog, Copepodslog))
+vif(model, type = "predictor")
+# Pass, correlation is below 90% and GVIF is bellow 5.
+
+
+# Homoscedasticity variance of residuals is constant across the range of fitted values
+plot(model)
+# Pass, residuals look approximately random
+
+# Residuals should be approximately normally distributed
+shapiro.test(residuals(model))
+# Pass, shapiro shows normality
+
+```
+
+Test
+
+```{r}
+# Model
+model1 <- lm(Fishlog ~ Arealog + PPRlog + Cladoclog + Copepodslog + Cladoclog*Copepodslog)
+summary(model1)
+# Model looks good
+
+# Check impact of variables on model
+plot(model1)
+influence.measures(model1)
+avPlots(model1)
+# Pass, fitted vs residuals looks reasonably random, qq of residuals looks normal
+
+# Test effect of centering MAT on model
+scatterplot(Fishlog ~ Arealog)
+scatterplot(scale(Fishlog) ~ scale(Arealog))
+# Again, centering data only changes the scale not the data itself
+```
+
+Results
+
+The results show an overall model that accounts for 77% of the variability in fish species richness (R2 = 0.806, adjusted R2 = 0.770, F(5, 27) = 22.45, p < 0.001). The model includes lake size, primary productivity, richness of cepepods, fish, and cladoverans, and the interaction between cladoverans and cepepods (log(Fish) = –2.491 + 0.155×log(Area) + 0.157×log(PPR) + 2.026×log(Cladoc) + 0.447×log(Copepods) – 0.399×(log(Cladoc)×log(Copepods))). Predictors had the following relationships in the model: Arealog: slope = 0.155 ± 0.040, t(27) = 3.82, p < 0.001; PPRlog: slope = 0.157 ± 0.082, t(27) = 1.92, p = 0.066; Cladoclog: slope = 2.026 ± 1.139, t(27) = 1.78, p = 0.086; Copepodslog: slope = 0.447 ± 1.096, t(27) = 0.41, p = 0.687; Cladoclog×Copepodslog: slope = –0.399 ± 0.588, t(27) = –0.68, p = 0.503. From this we can see that log area was the only statistically significant variable in predicting fish species richness.

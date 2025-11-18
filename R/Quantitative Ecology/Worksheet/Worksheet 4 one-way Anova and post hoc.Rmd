@@ -1,0 +1,358 @@
+---
+title: "Worksheet 4 One-way ANOVA"
+author: "Natalie Graham"
+date: "2025-08-01"
+output: pdf_document
+---
+
+### Load libraries
+```{r}
+library(readxl)
+library(ggplot2)
+library(knitr)
+library(car)
+
+```
+
+### Read in data
+```{r}
+medley <- read_excel("~/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/medley.xlsx")
+
+```
+
+## Example One
+**One Way Analysis of Variance**
+First a simple example with some made up data. Suppose we want to compare the mean abundance of a particular insect species across three different habitats: forest, grassland, and wetland.
+
+Examine the output of the model. Can you conclude that there are significant differences in insect abundance between the habitats?
+```{r}
+# Create a data frame with sample data
+data <- data.frame(
+  habitat = rep(c("Forest", "Grassland", "Wetland"), each = 10),
+  abundance = c(23, 25, 22, 24, 26, 27, 28, 29, 30, 31, 15, 17, 16, 18, 19, 20, 21, 22, 23, 24, 10, 12, 11, 13, 14, 15, 16, 17, 18, 19)
+)
+
+# Perform one-way ANOVA
+anova_result <- aov(abundance ~ habitat, data = data)
+
+# Display the summary of the ANOVA
+summary(anova_result)
+
+# Create a boxplot to visualize the abundance across habitats
+ggplot(data, aes(x = habitat, y = abundance, fill = habitat)) +
+  geom_boxplot() +
+  labs(title = "Abundance of Insect Species Across Habitats",
+       x = "Habitat",
+       y = "Abundance")
+
+```
+
+# Interpretation of the p-value in ANOVA:
+When you perform an ANOVA, you get an F-statistic and a corresponding p-value. 
+Null Hypothesis (H₀): The means of all groups are equal.
+Alternative Hypothesis (H₁): At least one group mean is different from the others.
+
+After performing a one-way ANOVA and finding a significant result (i.e., a low p-value), you may want to know which specific groups are different from each other. This is where post-hoc tests come in. Post-hoc tests are used to make multiple comparisons between group means while controlling for the overall Type I error rate (false positives).
+
+# Common Post-Hoc Tests
+*Tukey’s Honest Significant Difference (HSD) Test:*
+
+- Compares all possible pairs of means.
+- Controls the family-wise error rate.
+- Suitable when you have equal sample sizes.
+
+*Bonferroni Correction:*
+
+- Adjusts the significance level for multiple comparisons.
+More conservative, reducing the chance of Type I errors.
+- Some **truly** significant results might be missed
+- Suitable for any number of comparisons.
+
+*Scheffé’s Test:*
+
+- More flexible and conservative.
+- Suitable for unequal sample sizes and complex comparisons.
+
+*Dunnett’s Test:*
+
+- Compares each group mean to a control group mean.
+- Useful when you have a control group and want to compare all other groups to it.
+
+```{r}
+# Perform Tukey's HSD test
+tukey_result <- TukeyHSD(anova_result)
+
+# Display the results
+tukey_result
+
+```
+
+# Interpreting the Results
+The output of Tukey’s HSD test will show the pairwise comparisons between group means, along with confidence intervals and adjusted p-values. If the adjusted p-value for a comparison is less than the significance level (e.g., 0.05), it indicates a significant difference between those groups.
+
+# Visualizing the Results
+You can also visualize the results of Tukey’s HSD test using a plot:
+
+```{r}
+# Plot the results of Tukey's HSD test
+plot(tukey_result)
+
+```
+
+# Reporting ANOVA Results
+- Briefly describe the purpose of the analysis.
+- Mention the groups being compared.
+- Report the F-statistic, degrees of freedom, and p-value.
+- State whether the results are statistically significant.
+
+**Example:**
+“We conducted a one-way ANOVA to compare the mean abundance of the insect species across three different habitats: forest, grassland, and wetland. The results showed a significant difference in mean abundance between the habitats (F(2, 27) = 45.67, p < 0.001).”
+
+# Reporting Tukey’s HSD Test Results
+- Mention that a post-hoc test was conducted following a significant ANOVA result.
+- Report the pairwise comparisons, including the mean differences, confidence intervals, and adjusted p-values.
+- Highlight which comparisons are statistically significant.
+
+**Example:**
+“Following the significant ANOVA result, we conducted Tukey’s HSD test to determine which habitats differed significantly in mean abundance. The results indicated that the mean abundance in the forest habitat was significantly higher than in the grassland (mean difference = 8.5, 95% CI [6.2, 10.8], p < 0.001) and wetland habitats (mean difference = 13.5, 95% CI [11.2, 15.8], p < 0.001). Additionally, the mean abundance in the grassland habitat was significantly higher than in the wetland habitat (mean difference = 5.0, 95% CI [2.7, 7.3], p < 0.01).”
+
+# Creating a table for the reporting of results
+For anything more than three comparisons a table would be easier to read. 
+```{r}
+# Convert Tukey's HSD test results to a data frame
+tukey_df <- as.data.frame(tukey_result$habitat)
+
+# Add comparison column
+tukey_df$Comparison <- rownames(tukey_df)
+
+# Reorder columns
+tukey_df <- tukey_df[, c("Comparison", "diff", "lwr", "upr", "p adj")]
+
+# Rename columns
+colnames(tukey_df) <- c("Comparison", "Mean Difference", "95% CI Lower", "95% CI Upper", "Adjusted p-value")
+
+# Print the table in markdown format
+kable(tukey_df, format = "markdown", col.names = c("Comparison", "Mean Difference", "95% CI Lower", "95% CI Upper", "Adjusted p-value"))
+```
+
+# Logan example 10.11
+Medley and Clements (1998) investigated the impact of zinc contamination (and other heavy metals) on the diversity of diatom species in the USA Rocky Mountains. The diversity of diatoms (number of species) and degree of zinc contamination (categorized as either of high, medium, low or natural background level) were recorded from between four and six sampling stations within each of six streams known to be polluted. These data were used to test the null hypothesis that there were no differences the diversity of diatoms between different zinc levels (H0:μH = μM = μL = μB = μ; αi = 0).
+
+Can you write the linear effects model? (see page 265 in Logan)
+
+*Note:* You should have already read in your data 'medley' in the top of this Rmd document
+
+ANOVA (Analysis of Variance) relies on several key assumptions to ensure the validity of the results. Here are the main assumptions:
+
+1. Independence of Observations:
+The observations within each group and between groups should be independent of each other. This means that the data points are not related or influenced by each other.
+
+2. Normality:
+The data within each group should be approximately normally distributed. This assumption can be checked using normality tests (e.g., Shapiro-Wilk test) or by visualizing the data with Q-Q plots.
+
+3. Homogeneity of Variances (Homoscedasticity):
+The variances of the groups being compared should be approximately equal. This assumption can be tested using Levene’s test or Bartlett’s test.
+
+4. Random Sampling:
+The data should be collected through random sampling from the population to ensure that the sample is representative of the population.
+
+Take a look at the medley data. There are two categorical variables STREAM and ZINC and DIVERSITY is the continuous response variable.
+```{r}
+# call the data
+medley
+
+# look at the structure of the data
+str(medley)
+
+```
+
+## Its a good idea to get a summary of your data first
+```{r}
+# first lets look at some summary data
+medsum<-tapply(medley$DIVERSITY, medley$ZINC, summary)
+medsum
+
+medsumsd<-tapply(medley$DIVERSITY, medley$ZINC, sd)
+medsumsd
+# the SD’s are all fairly close to each other, indicating similar variance
+
+```
+
+### Let's plot the data
+```{r}
+# First lets change zinc to be a factor with levels that are low, med, high, and background
+
+# Protip, first run the function 'unique' to show the categories so you can sort them manually into your code as levels 
+# unique(medley$ZINC)
+# [1] "BACK" "HIGH" "MED"  "LOW"
+
+# use factor to assign levels back to the variable ZINC
+medley$ZINC <- factor(medley$ZINC, levels = c("LOW", "MED", "HIGH", "BACK"))
+
+# Create a boxplot using the base plot function
+boxplot(DIVERSITY ~ ZINC, data = medley,
+        main = "Diversity Across Zinc Levels",
+        xlab = "Zinc Level",
+        ylab = "Diversity",
+        col = c("lightblue", "lightgreen", "lightcoral", "lightgrey"))
+
+# Create histograms for each ZINC level
+par(mfrow = c(1, 4)) # Set up the plotting area to show 3 plots side by side
+levels <- levels(medley$ZINC)
+colors <- c("lightblue", "lightgreen", "lightcoral", "lightgrey")
+
+# Use a for loop to plot each of the zinc levels
+for (i in 1:length(levels)) {
+  hist(medley$DIVERSITY[medley$ZINC == levels[i]],
+       main = paste("Histogram of Diversity for", levels[i]),
+       xlab = "Diversity",
+       col = colors[i],
+       border = "black")
+}
+par(mfrow = c(1, 1)) # Reset plotting area
+```
+
+That same histogram plot is considerably easier to create in ggplot library
+```{r}
+# Create a histogram for DIVERSITY colored by ZINC levels
+ggplot(medley, aes(x = DIVERSITY, fill = ZINC)) +
+  geom_histogram(binwidth = 0.5, position = "dodge", color = "black") +
+  labs(title = "Histogram of Diversity by Zinc Levels",
+       x = "Diversity",
+       y = "Frequency") +
+  facet_wrap(~ZINC)
+
+# run the same plot without the facet wrapping call and you can see the entire diversity histogram colored by the zinc categories
+ggplot(medley, aes(x = DIVERSITY, fill = ZINC)) +
+  geom_histogram(binwidth = 0.5, position = "dodge", color = "black") +
+  labs(title = "Histogram of Diversity by Zinc Levels",
+       x = "Diversity",
+       y = "Frequency")
+
+```
+# Q-Q plot for normality
+```{r}
+qqnorm(medley$DIVERSITY)
+qqline(medley$DIVERSITY)
+```
+# Shapiro-Wilk test for normality
+The Shapiro-Wilk Test is another way to test for normality. It generates a W statistic and a P value, with P<0.05 being evidence against the null that the data is normally distributed (so larger P values are evidence of normality.
+Null Hypothesis (H0): The data is normally distributed.
+Alternative Hypothesis (H1): The data is not normally distributed.
+```{r}
+shapiro.test(medley$DIVERSITY)
+```
+
+### Check for violations of homoscedasticity (homogeneity of variances) 
+FIRST ... 
+**Recall from the data summary we did earlier** The SD’s are all fairly close to each other, indicating similar variance
+
+Here are some common statistical tests for violations of homoscedasticity:
+
+1. Levene’s Test
+Levene’s test is used to assess the equality of variances for a variable calculated for two or more groups. It is less sensitive to departures from normality.
+
+2. Bartlett’s Test
+Bartlett’s test is another test for homogeneity of variances. It is more sensitive to departures from normality, so it is best used when the data is normally distributed.
+
+Let's use Levene's test
+Null Hypothesis (H0): The variances are equal across groups.
+Alternative Hypothesis (H1): The variances are not equal across groups.
+
+```{r}
+# Perform Levene's test 
+# Note: to perform Levene's you need to load the car package if you haven't already
+leveneTest(DIVERSITY ~ ZINC, data = medley)
+```
+### Residuals plot
+
+After you run your model you can check the residuals plot. Recall that residuals are difference between the actual value of a data point and the value predicted by a model. If the residuals are randomly scattered around zero with no clear pattern, it suggests homoscedasticity. If there is a pattern (e.g., a funnel shape), it indicates heteroscedasticity.
+```{r}
+
+# Fit a linear model 
+zincmodel <- aov(DIVERSITY ~ ZINC, data = medley)
+
+# Extract residuals
+residuals <- resid(zincmodel)
+
+# Plot residuals
+plot(residuals, main = "Residuals Plot", xlab = "Index", ylab = "Residuals")
+abline(h = 0, col = "red")
+```
+
+**Our data are normally distributed and exhibit homoscedasticity.**
+
+### Tranformations
+What to do if you have Violations of Normality and Homogeneity of Variances (Homoscedasticity)!
+Here are a few common transformations
+Note: If attampting a transformation you then need to replot or rerun the statistical tests to see if there was improvement in the violation of the assumptions
+```{r}
+
+# transform by natural log and assign to a new variable in the df
+medley$DIVlog <- log(medley$DIVERSITY)
+
+# transform by inverse and assign to a new variable in the df
+medley$DIVinv <- 1 / medley$DIVERSITY
+
+# transform by square root and assign to a new variable in the df
+medley$DIVsqrt <- sqrt(medley$DIVERSITY)
+
+# call the data to see the changes
+medley
+```
+
+### AVOVA results
+Null Hypothesis (H0)
+There is no significant difference in diversity across different levels of zinc. In other words, zinc levels do not affect diversity.
+
+Alternative Hypothesis (H1)
+There is a significant difference in diversity across different levels of zinc. In other words, zinc levels do affect diversity.
+```{r}
+summary(zincmodel)
+```
+
+How would you report your results?
+
+### Post-hoc testing
+ANOVA is significant (at least two of the groups are different) so proceed to a post hoc Multiple Comparisons Test 
+```{r}
+TukeyHSD(zincmodel)
+```
+
+The only significant difference in diversity is between **HIGH and LOW zinc levels**, with diversity being lower at HIGH zinc levels. The other comparisons do not show significant differences.
+
+Could you make an RMD table to report your results?
+
+# Plot Tukey's results
+Now make a plot that shows the Tukey’s 95% CI’s. (Note- the call “las=1” specifies the orientation of the axis tick labels). Look for an interval that does not include 0, or no difference between the two levels.
+
+```{r}
+plot(TukeyHSD(zincmodel),las=1)
+```
+
+# Kruskal-Wallis test (nonparametric equivalent of the one-way ANOVA test). 
+
+This test can be used if your data are not normally distributed, if variances of your populations or groups are not equal or if small sample size makes ANOVA unreliable (e.g. n<4) 
+Assumptions: random sample from each population and samples are independent
+Hypothesis: Hypotheses are written about the **medians** of the populations
+H0: Median1 = Median2 = Median3 etc (i.e. All medians are equal)
+HA: All medians are not equal
+
+**Function:** kruskal.test(RV ~ EV, data= 'dataframe name')
+
+```{r}
+kruskal.test(medley$DIVERSITY~medley$ZINC)
+```
+As *p* = 0.033, there is  evidence to suggest a difference between at least one pair of groups but which pairs? To find out, produce pairwise Wilcoxon signed rank comparisons for each pair of groups. 
+
+### Pairwise Comparisons
+As multiple tests are being carried out, an adjustment to the p-value is needed to keep the
+overall type 1 error down. The simplest adjustment is the Bonferroni adjustment **p.adj='bonferroni'** 
+which multiplies each Wilcoxon signed rank *p*-value by the total number of Wilcoxon tests being carried
+out (here it is 6) while the **exact=F** stands for the asymptotic test which allows tied ranks. Use this command to produce the pairwise tests with Bonferroni correction.
+```{r}
+pairwise.wilcox.test(medley$DIVERSITY, medley$ZINC,p.adj='bonferroni', exact=F)
+```
+
+The pairwise comparisons show the results of the Wilcoxon tests on each pair of groups.
+The adjusted *p*-values are shown for each pair in the output e.g. the *p*-value for High vs Med is 0.382. High-low has *p* = 0.056 (significant difference at *alpha*=0.1, but not at *alpha*=0.05) this test is not as powerful as the parametric ANOVA (it is conservative) and did not pick up a difference when doing Bonferroni adjustment. A boxplot would be appropriate to demonstrate results of this analysis.

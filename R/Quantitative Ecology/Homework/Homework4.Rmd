@@ -1,0 +1,212 @@
+---
+title: "Homework4"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Datasets: Ollinger, Dodson
+
+```{r}
+# Load dataset
+ollinger <- readxl::read_excel("/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/Ollinger.xlsx")
+```
+
+## Question 1: 
+
+Ollinger et al. (2002) studied regional variation in the relationships between canopy chemistry, soil C:N ratios and soil N transformations in a forest in New Hampshire, USA. They sampled 30 plots in the forest, each plot with a different history of logging and a combination of one or more tree species (e.g. American beech, balsam fir, eastern hemlock etc.). For each plot, they measured the % lignin and % N from upper and mid-canopy foliage from trees of each species and combined these into single values for N and lignin. They also measured C:N ratios of replicate soil cores from each plot, as well as rates of N mineralization and nitrification and soil pH. Our interest is in the nature of the relationship between soil C:N ratios and foliar lignin:N ratios in the canopy. The latter can be measured across large spatial scales using various new remote sensing techniques (e.g. AVIRIS: Airborne Visible and InfraRed Imaging Spectrometer), whereas soil characteristics require time-consuming on-ground sampling, so predicting soil C:N from canopy lignin:N would be very useful.
+
+        
+ a) Draw a scatterplot of soil C:N ratio against foliar lignin:N ratio, with boxplots and/ or histograms included for each variable (histograms for the y variable). Is there evidence of strong non-normality for either variable or nonlinearity in the relationship? 
+ 
+```{r}
+# Check assumptions
+cn <- ollinger$SoilCN
+ln <- ollinger$FoliarLigN
+
+# Normality
+plot(ln, cn, xlab = "Foliar lignin:N", ylab = "Soil C:N")
+boxplot(cn, main="Soil C:N")
+boxplot(ln, main="Foliar lignin:N")
+hist(cn); hist(ln)
+
+# Nonlinearity
+linearity_model <- lm(cn ~ ln)
+plot(linearity_model, which = 1)
+qqnorm(residuals(linearity_model)); qqline(residuals(linearity_model))
+```
+
+These data are not normal but regression does not require normality of input data. The residual plot does not show much correlation meaning that the variables are presumed to have a linear relationship.
+ 
+ b) Now fit a linear regression model to these data, with soil C:N ratio as the response variable and foliar lignin:N ratio as the predictor. Examine the residuals from this model – any obvious problems? Any outliers or influential observations identified? 
+
+```{r}
+#Build model
+model <- lm(cn ~ ln)
+plot(model)
+```
+The residuals appear approximately normally distributed. Therefore, the normality assumption for linear regression is reasonably satisfied. We can setup our null and alternative hypotheses as: H0: slope = 0, no relationship between lignin:N and soil C:N; and H1: slope != 0, there is a relationship between lignin:N and soil C:N.
+
+ c) Summarize the results of the linear regression. Include the full regression model with confidence intervals on the parameter estimates and the test of the null hypothesis of zero slope.
+ 
+```{r}
+# Get model results
+summary(model)
+```
+ 
+ The model shows that an increase in C:N ratio increased significantly with lignin:N ratio (slope=1.22 ± 0.1, t(28) = 8.5, p<0.001). The equation is as follows: Soil C:N = 6.46 + 1.22 × lignin:N. The null hypothesis (H0: slope = 0, no relationship between lignin:N and soil C:N) was rejected in favor of the alternative (H1: slope != 0). The model explained 72% of the variance in soil C:N (R^2 = 0.72, adjusted R^2 = 0.71), and the overall regression was highly significant (F(1, 28) = 72.7, p < 0.001).
+  
+ d) What biological conclusions would you draw from this analysis? Can you predict soil C:N from canopy lignin:N? 
+These results indicate that lignin:N in the canopy is a good predictor of soil C:N.
+
+
+## Question 2: 
+
+A positive relationship between number of species and area sampled (the species-area relationship) has long been considered one of ecology’s few “laws”. Using the data from Dodson et al. (2000), we will examine the relationships between the number of species of fish and copepods and lake area.
+
+```{r}
+# Import data
+dodson <- readxl::read_excel("/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/dodson.xlsx")
+```
+
+ a) Draw a scatterplot of number of fish species against lake area, with boxplots and histograms for relevant variables. Also fit a Lowess smoothing function to the data. Is there evidence of non-normality for either variable or nonlinearity in the relationship? 
+ 
+```{r}
+# Get vars
+dodson.species <- dodson$Fish
+dodson.area <- dodson$Area
+
+# Scatterplot with lowess for nonlinearity
+plot(dodson.area, dodson.species,
+     xlab = "Lake area",
+     ylab = "Number of fish species")
+lines(lowess(dodson.area, dodson.species), col = "red", lwd = 2)
+abline(lm(dodson.species ~ dodson.area), col = "blue", lwd = 2)
+
+# Boxplots
+boxplot(dodson.area, main="Lake area")
+boxplot(dodson.species, main="Fish species")
+
+# Histograms
+hist(dodson.area, main="Histogram of Lake area", xlab="Area")
+hist(dodson.species, main="Histogram of Fish species", xlab="Fish species")
+
+# QQ plots
+qqnorm(dodson.area); qqline(dodson.area)
+qqnorm(dodson.species); qqline(dodson.species)
+
+# Log will be explored below
+```
+ 
+ The qqplot indicates non-normal data, however, linear regression does not need normal data. Lowess indicates nonlinearity in the data as the two line deviate from eachother. After log-log transformation, the species-area relationship appears more normal. This indicates diminishing gains in species richness with increasing lake area.
+ 
+ b) Now fit a linear regression model to these data, with number of fish species as the response variable and lake area as the predictor. Examine the residuals from this model – any obvious problems? Any outliers or influential observations identified? 
+ 
+```{r}
+# Make linear model
+model <- lm(dodson.species ~ dodson.area)
+plot(model)
+summary(model)
+```
+
+These results indicate that a linear model may not fit the data appropriately, and, given that the data did not conform to nonlinearity, this makes sense. It seems that the model does not predict the the number of fish species in lakes of small or large sizes. There are a handful of outlines on qq residual plot that are easy to spot.
+
+These assessments of the data and adequacy of the model probably convinced you that transformation of both variables might be appropriate. For ex, Dodson decided to log transform.
+
+ c) Redo the scatterplot and Lowess smoother using transformed variables – do the boxplots appear more symmetrical and a linear relationship more plausible? 
+ 
+```{r}
+# Test log transform
+dodson.species.log <- log1p(dodson$Fish)
+dodson.area.log <- log(dodson$Area)
+
+plot(dodson.area.log, dodson.species.log,
+     xlab = "log(Lake area)",
+     ylab = "log(Number of fish species)")
+lines(lowess(dodson.area.log, dodson.species.log), col="red", lwd=2)
+abline(lm(dodson.species.log ~ dodson.area.log), col="blue", lwd=2)
+```
+ 
+ 
+ d) Refit a linear regression model using transformed data and examine the residuals. Are they more reasonable than they were with untransformed variables? 
+
+```{r}
+# Create model for log data
+model <- lm(dodson.species.log ~ dodson.area.log )
+plot(model)
+```
+
+Performing a log-log transform greatly reduces the residuals on the high and low ends of lake sizes. This makes for a better model.
+
+ e) Write out the results from your linear regression analysis, including the test of the null hypothesis of zero slope.
+
+  
+The non transformed linear regression revealed a significant positive relationship between the number of fish species and lake area. The slope was 328.5 ± 105.1 (t(31) = 3.13, p = 0.0038), indicating that lake area increases with species richness. The fitted equation was lake area = –436.4 + 328.5 × fish species. The model explained about 24% of the variation in lake area (R^2 = 0.2398, adjusted R^2 = 0.2153), and the overall regression was significant (F(1, 31) = 9.78, p = 0.0038), leading us to reject the null hypothesis of zero slope.
+
+
+```{r}
+summary(model)
+```
+ 
+  
+ f) What conclusions would you draw from the regression analysis using transformed variables? 
+
+With log-transformed variables, the model fits much better (R^2 = 0.46 vs. 0.24). The slope (0.275 ± 0.053, p < 0.001) shows that species richness increases with lake area but at a slowing rate—larger lakes add species more gradually. This supports the idea of diminishing returns in the species–area relationship. Additionally, the Q-Q residual plot shows a better normality indicating a better model fit.
+
+
+Question 3: Follow the same procedure as above (a-f) using number of species of copepods, rather than fish, as the response variable. What conclusions can you draw from the analysis?
+
+
+```{r}
+# Get vars
+dodson.species <- dodson$Copepods
+dodson.area <- dodson$Area
+
+# Scatterplot with lowess for nonlinearity
+plot(dodson.area, dodson.species,
+     xlab = "Lake area",
+     ylab = "Number of copepod species")
+lines(lowess(dodson.area, dodson.species), col = "red", lwd = 2)
+abline(lm(dodson.species ~ dodson.area), col = "blue", lwd = 2)
+
+# Boxplots
+boxplot(dodson.area, main="Lake area")
+boxplot(dodson.species, main="Copepod species")
+
+# Histograms
+hist(dodson.area, main="Histogram of Lake area", xlab="Area")
+hist(dodson.species, main="Histogram of Copepod species", xlab="Copepod species")
+
+# QQ plots
+qqnorm(dodson.area); qqline(dodson.area)
+qqnorm(dodson.species); qqline(dodson.species)
+
+
+# Make linear model
+model <- lm(dodson.species ~ dodson.area)
+plot(model)
+summary(model)
+
+
+# Test log transform
+dodson.species.log <- log1p(dodson$Copepods)
+dodson.area.log <- log(dodson$Area)
+
+plot(dodson.area.log, dodson.species.log,
+     xlab = "log(Lake area)",
+     ylab = "log(Number of Copepod species)")
+lines(lowess(dodson.area.log, dodson.species.log), col="red", lwd=2)
+abline(lm(dodson.species.log ~ dodson.area.log), col="blue", lwd=2)
+
+
+# Create model for log data
+model.log <- lm(dodson.species.log ~ dodson.area.log )
+plot(model.log)
+summary(model.log)
+```
+
+In the untransformed regression, copepod species richness shows no significant relationship with lake area. Relationship: slope = 611.2 ± 1158.9, t(31) = 0.53, p = 0.602. Equation: area = 2900.5 + 611.2 * area. Fit: R^2 = 0.009, adjusted R^2 = –0.023, F(1, 31) = 0.28, p = 0.602. This suggests that a simple linear model does not capture the pattern.
+
+However, after log transformation, the relationship becomes strong and highly significant. Relationship: slope = 0.275 ± 0.053, t(31) = 5.16, p < 0.001. Equation: log(species) = 1.01 + 0.275 × log(area). Fit: R^2 = 0.462, adjusted R^2 = 0.444, F(1, 31) = 26.59, p < 0.001. The slope indicates that copepod richness increases with lake area but at a diminishing rate, indicating a species–area relationship.
+
+

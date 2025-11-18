@@ -1,0 +1,319 @@
+---
+title: "7a multiple regression"
+author: "Natalie Graham"
+date: "2025-08-01"
+output: pdf_document
+---
+
+CBES 677
+Worksheet 7A- Multiple regression- See Logan Ch. 9
+
+Load libraries
+```{r}
+library(readr)
+library(car)
+library(ggplot2)
+library("readxl")
+```
+
+Read in data
+```{r}
+loyn <- read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/loyn.xlsx')
+dodson <- read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/dodson.xlsx')
+```
+
+# Goals
+  * Become familiar with analyzing data with multiple linear regression and interpretation of regression coefficients or parameter estimates.
+
+# Multiple Regression
+  * Extension of simple linear regression that models a RV as a function of more than one EV
+     Yi = β0 + β1 xi1 + β2 xi2 + β3 xi3 + … + ε
+  
+  * Function: lm(RV ~ EV1 + EV2 + EV3 + ….., data= “dataframe name”)
+
+### Assumptions
+Same assumptions as simple linear regression with added assumption that EVs are not correlated with one another (i.e. no multicollinearity)
+
+  * Linearity: The mean response has a linear relationship with x
+  * Independence: Values of each yi are independent of one another
+  * Normality: For each value of x, the response y varies according to a normal distribution
+  * Constant Variability: The variances are equal among x values
+  * No Multicollinearity: The values of x are not correlated with each other
+
+# Multicollinearity – occurs when EVs are correlated with one another
+  * The problem with multicollinearity is that it increases the standard error of the regression coefficients (slopes or parameters) for correlated EVs. By overinflating the standard errors, multicollinearity reduces the power to detect a significant relationship between the EVs and the RV. Without multicollinearity (and thus, with lower standard errors), those coefficients might be significant.
+  * Multicollinearity has no impact on the overall regression model because it doesn’t change the relationship between an individual EV and RV (i.e. slope of the line), only influences the error around the slope of the line. 
+  * Also important to assess data for influential observations or outliers  
+  * Sample size – at least 10 observations per EV (e.g. if have 4 EV then sample size should be no smaller than 40)
+# Collinearity (multicollinearity) is best assessed with a 1) a correlation matrix and 2) by examining variance inflation factors (VIFs) as described in further detail below
+
+### Diagnostics in R (i.e. assessing assumptions)
+Package **car** has several functions that allow for diagnostics in regression
+of all variables to assess linearity, normality, and homogeneity of variance
+
+  * Function: **scatterplotMatrix**
+  * Produces matrix of scatterplots of each combination of variables (i.e. pairs) to assess linearity, normality, variance etc.
+  * Use it to examine distribution of individual variables and if each EV has a linear relationship with the RV
+
+**Correlation Matrix**
+Assess autocorrelation of EVs
+
+  * Function: **cor**
+  * Tells R to creates a correlation matrix for specific columns of the dataframe
+  *  Can also use Function: **cor.test**
+    + Run correlations on individual pairs of EVs
+    + Typically consider variables autocorrelated when correlation coefficients are >80%
+
+**Variance Inflation Factor (VIF)**
+To assess potential impact of multicollinearity on regression coefficents 
+
+  * Function: **vif**
+  * VIF is an index that measures how much the regression coefficient is increased because of collinearity.
+  * VIF values > 5 should be examined (less than 5 is good).
+
+**Tolerance**
+An indication of the percent of variance in the EV that cannot be accounted for by the other EV, hence very small values indicate that a EV is redundant – inverse of VIF
+
+  * Values that are less than .20 should be examined further
+  * Function: **1/vif**
+
+**Residuals**
+As a final check of assumptions – most important are residual vs. fit and Cook’s D
+
+  * Function: **plot(model)**
+
+
+**Partial Regression Plots**
+
+  * Scatterplot of the partial correlation of each EV with the RV after removing the linear effects of the other EVs in the model.
+  * "The slope of any single partial regression line (partial regression slope) represents the rate of change, or effect, of that specific predictor variable (holding all the other predictor variables constant to their respective mean values) on the response variable. In essence, it is the effect of one predictor variable at one specific level (the means) of all the other predictor variables (i.e. when each of the other predictors are set to their averages)
+  * Useful for detecting possible influential cases in multiple linear regression
+  * Function: **avPlots**
+  * Specific Ex. avPlots(model)
+  * Helpful (but fast!) video: https://www.youtube.com/watch?v=z0OXMMFVyGQ
+  * Also see: https://stats.stackexchange.com/questions/125561/what-does-an-added-variable-plot-partial-regression-plot-explain-in-a-multiple
+ 
+### Interpretation of Regression Coefficients (Slope or Parameter Estimates)
+
+Each coefficient is an estimate of the effect of an individual EV on the RV when other EVs are included in the model
+
+  * Interpret as a change in the RV that is associated with a one-unit increase in that EV while holding all other EV fixed
+  * The meaning of an individual EV regression coefficient and its associated significance (e.g. p-value) depends on what other EVs are included in the model
+  * **This means what EVs you choose to include in the model are important and the order they are presented in the model also matters!!**
+
+ 
+# Additive and Multiplicative Models
+#### Additive model
+  * model that contains only main effects (added together), but no interactions
+
+#### Multiplicative Model
+  * model that contains both main effects **and** interactions
+  * When including interactions it is best to only include biologically meaningful interactions, especially if there are a lot of predictors or EVs in the model
+    + For example from the Loyn dataset (below) we may think that the impact of grazing intensity or area of the patch on abundance of bird species differs depending on the altitude
+  * Include interactions with either * or : between two EVs
+    + E.g.: bird.model.int <- lm(logAREA + YR.ISOL + logDIST + logLDIST  + GRAZE + ALT + GRAZE:ALT + logAREA*ALT, data = bird.dat)
+
+###Centering
+  * **It is sometimes helpful to center your data because of correlation between an interaction and the main effects that make up the interaction. Centering can reduce this collinearity. 
+    + Function: **scale** – subtracts mean value (of each column) from each observation in the vector indicated 
+    + E.g.: bird.dat $ clogAREA <- scale(bird.dat $ logAREA, scale = F)
+    + scale tells R to center observations in the vector logAREA found in the dataset bird.dat and make a new column in the dataset bird.dat titled clogAREA
+    + scale = F tells R to not divide by the stdev
+    + after scaling the data, it is good to run diagnostics for correlation again - see below for descriptions of: cor(); vif(); 1/vif()
+    + We will likely revisit the **scale()** function in a later class
+    
+#### Interpretation of Positive Interactions
+  * If the interaction is significant then you can’t really discuss the main effects individually; you can only discuss them relative to one another.  
+  * Examining slope of line between EV and RV...Significant interaction suggests that slope of one EV changes as values of the second EV change
+
+
+# Additive Model Example - Loyn (1987) - p.224 in Logan
+Question: What are the most important factors that influence bird abundance in forest patches?
+
+  * Dataset collected from 56 forest patches in Victoria
+  * RV = Forest bird abundance (ABUND) 
+  * EVs = patch area (AREA), No. yrs isolation (YR.ISOL), distance to nearest patch (DIST), distance to largest patch (LDIST), grazing intensity (GRAZE), altitude (ALT)
+
+## Input data into RStudio & check data
+```{r}
+head(loyn)
+str(loyn)
+names(loyn)
+```
+
+## First, Make Scatterplot of all variables to assess assumptions of linearity, normality, variance
+  * Examine distribution of individual variables
+  * Examine if linear relationship of each EV with the RV (ABUND)
+  * Examine correlation between variables
+  
+ #The scatterplot matrix is a great way to look at a variety of relationships among ALL the variables at once. You can type the function scatterplotMatrix() to get this (remember case sensitivity). You can also examine the assumption of normality for each (but the response in particular) using the diag = “boxplot” or the diag=”hist” argument.
+ 
+  
+First, plot all variables with the default settings. The top left corner shows the density distribution of the variable ABUND. To the right (staying in the top row), each graph has ABUND on the y-axis, and the corresponding variables shown in the rows below on the x-axis. So, the graphs in the top row have these variables, in order, on the x-axis: 2) AREA, 3) YR.ISOL, 4) DIST, 5) LDIST, 6) GRAZE, 7) ALT. 
+```{r}
+scatterplotMatrix(loyn) # plots all variables. The diagonal default is a density curve
+```
+Test some other settings:
+```{r}
+scatterplotMatrix(loyn, diagonal=list(method="histogram"))
+scatterplotMatrix(loyn, diagonal=list(method="boxplot"))
+```
+While the response seems to be normal, the non-linearity of a number of the other predictors (AREA, DIST, and LDIST) messes up the assumption of linearity, and most likely will give a strange pattern to the residual plots later on. They can be transformed now to avoid problems later.
+ 
+# note- can also get a better view of the distribution of each variable individually, eg.:
+```{r}
+hist(loyn$AREA)
+```
+#The following creates a new scatterplot matrix with the transformed variables:
+```{r}
+scatterplotMatrix(~ABUND+log10(AREA)+YR.ISOL+log10(DIST)+log10(LDIST)+
+GRAZE+ALT, data =loyn, diagonal=list(method="boxplot"))
+```
+# Transform function
+Better than above is to use the **transform** function to log-transform EVs that are highly right-skewed (AREA, DIST, LDIST) to the original dataframe
+```{r}
+loyn<- transform(loyn, logAREA = log(AREA), 
+                    logDIST = log(DIST), 
+                    logLDIST = log(LDIST))
+
+loyn
+```
+
+#### New Scatterplot with transformed data
+smooth = F - tells R not include the nonparametric regression lines
+
+```{r}
+scatterplotMatrix(~ABUND + logAREA + YR.ISOL + logDIST + logLDIST +
+                    GRAZE + ALT, data = loyn, 
+                  diagonal=list(method="histogram"), smooth = F)
+```
+## Check assumption of multicollinearity 
+Examines correlation among EVs  
+```{r}
+cor(loyn[,3:10]) #which columns chosen here?
+```
+Example code to specify specific rows to correlate:
+```{r}
+cor(loyn[,c("logAREA", "YR.ISOL", "logDIST", 
+                "logLDIST", "GRAZE", "ALT")]) 
+```            
+correlations all **below 0.8**, indicating multicollinearity not a problem
+
+## Build model - additive (no interactions included) now, and use it to further examine diagnostics
+
+```{r}
+bird.model <- lm(ABUND ~ logAREA + YR.ISOL + logDIST + logLDIST 
+                 + GRAZE + ALT, data=loyn)
+```
+
+### Further check for multicollinearity
+The variance inflation factors and their inverses (tolerances) are **less than 5** and **greater than, 0.2** respectively suggesting that multicollinearity is unlikely to be a problem.
+
+**Variance inflation factor** Values greater than 5 should be examined and potentially not included in model
+
+```{r}
+vif(bird.model)
+```  
+**Tolerance** Values < 0.2 should be examined and potentially not included in model
+```{r}
+1/vif(bird.model)
+```
+### Use function *plot* to assess residuals with Residual plots
+```{r}
+par(mfrow = c(2,2))#set plotting window
+plot(bird.model)
+par(mfrow = c(1,1))#reset plotting window
+```
+  
+### Assess if any influential observations
+```{r}
+influence.measures(bird.model)
+``` 
+Some of the leverage (hat) values are greater than 2 ∗ p/n = 0.286, but none of the Cook’s D values are ≥ 1. We will use Cook's D to conclude that we do not have strongly any influential observations. This indicates that our assumptions are generally met and the hypothesis tests will be reliable.
+
+## Added Variable plots
+
+It is also helpful to produce Added Variable plots which show the “partial slopes”, or the slope for the response against each predictor separately, while holding all the other predictor variables constant. Added variable plot provides information about the marginal importance of a predictor variable, given the other predictor variables already in the model. It shows the marginal importance of the variable in reducing the residual variability.  
+A strong linear relationship in the added variable plot indicates the increased importance of the contribution of X to the model already containing the other predictors.
+
+Use the function below:
+```{r}
+avPlots(bird.model)
+```
+
+
+## Model summary and interpretation
+```{r}
+summary(bird.model)
+```
+#### Confidence interval of each parameter
+```{r}
+confint(bird.model)
+```
+There was a significant positive slope for bird abundance against the log-transformed AREA (slope= 3.24428). The overall model explained 69% of the variability in bird abundances across the 56 patches in Victoria. Bird abundances were found to increase with increasing patch area, but were not found to be significantly affected by grazing, altitude, years of isolation and distance to nearest patch or larger patch.  
+    
+#### Plots
+The clearest way to graphically display the model is with a scatterplot of the significant EV with a regression line (only examining relationship between area and abundance in isolation)
+```{r}
+# base r plot
+plot(ABUND~logAREA, data=loyn)
+abline(lm(ABUND~logAREA, data=loyn))
+
+
+# Create the scatter plot using ggplot 
+ggplot(loyn, aes(x = logAREA, y = ABUND)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  theme_minimal()
+```
+
+
+# Additional Model Interpretation Exercise:
+Depending on which predictors are added to a model, the P values for those predictors can change. In addition, the order they are added can also change their effect. Three models can be created below to demonstrate this: 
+
+Import the “Dodson” dataset we worked with earlier if you haven't already
+```{r}
+names(dodson)
+
+```
+```{r}
+
+dod1<-lm(Fish~Area+PPR, data = dodson)
+summary(dod1)
+```
+```{r}
+
+dod2<-lm(Fish~Area+PPR+Area:PPR, dodson)
+summary(dod2)
+```
+```{r}
+dod3<-lm(Fish~PPR+Area+Copepods, data = dodson)
+summary(dod3)
+```
+**Model 1**
+Predictors: Area, PPR
+Significant Predictors: Area (p = 0.00756)
+R-squared: 0.2546
+Adjusted R-squared: 0.2049
+Residual Standard Error: 19.15
+F-statistic: 5.122 (p = 0.01219)
+
+**Model 2**
+Predictors: Area, PPR, Area:PPR (interaction term)
+Significant Predictors: Area (p = 0.0299)
+R-squared: 0.257
+Adjusted R-squared: 0.1801
+Residual Standard Error: 19.45
+F-statistic: 3.343 (p = 0.03272)
+
+**Model 3**
+Predictors: PPR, Area, Copepods
+Significant Predictors: Area (p = 0.0115)
+R-squared: 0.3149
+Adjusted R-squared: 0.2441
+Residual Standard Error: 18.67
+F-statistic: 4.444 (p = 0.01095)
+
+In summary, the inclusion of different predictors and interaction terms affects the significance of the predictors, the R-squared values, and the residual standard errors. Area consistently remains a significant predictor across all models.
+
+ 

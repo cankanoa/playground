@@ -1,0 +1,364 @@
+---
+title: "Worksheet 11 Mixed models"
+author: "Natalie Graham"
+date: "2024-10-28"
+output: pdf_document
+---
+
+The main assumption of most multi-level models is that the observations or measurements that comprise the response variable are independent and the residuals of the model are normally distributed. The effects we want to make inferences on are assumed to be non-random, and are known “fixed-effects”. These are typically the explanatory variables in our models. Random effects are usually grouping factors that we are trying to control for. These sources of variability in our measurements are usually not the object of interest, but when we include them explicitly in the model, they improve the estimates of the fixed effects (make them more accurate). A model which has both random-effects and fixed-effects, is known as a “mixed effects” model. If the model is also linear, it is known as a linear mixed model (LMM).
+
+https://www.youtube.com/watch?v=FCcVPsq8VcA
+
+Many datasets do not meet the assumption of independence, where all the data points are supposed to be independent from each other. For example, we may have a dataset that is a combination of single measurements from some individuals and multiple (repeated) measurements from other individuals. In this case, the ones taken from the same individual are not independent. This will have an effect on the variance (or error structure) of the model, and can lead to incorrect estimates or slopes. Another example - we are interested in measurements on baby birds. If we take measurements from lots of baby birds, but some are from the same nest and others aren’t, then these are not independent from each
+other because some are related to each other (same family and nest) whereas others aren’t. And as a final example- we often take measurements from certain locations such as quadrats, stations along transects, different streams etc. but then combine measurements from all the locations in a final analysis, because we really aren’t interested in the effect of quadrat, station or stream. Again, those measurements from individuals within the same quadrat, station, or stream would be more similar to each other (less independent) than those from different ones. For these commonly collected kinds of data, we can use mixed models.
+
+#### Load libraries
+```{r}
+library("readxl")
+library('lme4')
+library('lmerTest')
+# library('lsmeans') # lsmeans warning to switch to emmeans
+library("emmeans")
+library('car')
+library('arm')
+library("effects")
+library('ggplot2')
+library("insight")
+library("broom")
+```
+In this dataset, each bird has been measured from one to three times. If we use the function **head()** to view the first 6 rows of data, we can see that these 6 rows have data for 2 birds. In this particular example, we don't expect tarsus length to change over time, so the differences among tarsus measurements for a particular bird are due to measurement error. Thus, there is variance **within** individual birds, and variance **among** birds.
+
+#Import the datasets
+```{r}
+Nakagawa <- read_excel("/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/Nakagawa.xlsx")
+medley <- read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/medley.xlsx')
+```
+# Example 1- Consider a very simple example of non-independence
+```{r}
+mean(Nakagawa$Tarsus)
+```
+The overall mean of tarsus is 18.63239, but this doesn't consider the repeated measures per bird.
+
+## Step 2: Generate a very simple linear model and a very simple mixed-effects model
+Let's consider two models. **model1** is a regular linear model and uses the function **lm()**. **model2** is a mixed-effects model and uses the function **lmer()** from the package **lme4**. 
+
+Note that in the two models, I have specified "~1"; the "1" represents the inclusion of the intercept, which is by default included in all of our models when we write RV~EV (i.e. the models are all actually RV~1+EV). In other words, **model1** is asking, "what is the expected value of the RV when the EVs are zero or have no influence?". Note also that **model1** is referred to as the **null model** or as the **intercept model**. The null model, or the intercept model, is really just a way of showing the mean and variance of the response variable.
+
+The second model (**model2**) similar to **model1** except that it is accounting for the repeated measures of each bird. 
+
+```{r}
+model1<-lm(Tarsus~1,data=Nakagawa)
+model2<-lmer(Tarsus~1 + (1|ID),data=Nakagawa)
+```
+
+### Observe that the very simple linear model has two parameters
+Looking at the intercept only model...
+```{r}
+# Summary of the lm model
+#summary(model1) <- the usual way for an lm
+
+# Tidy up the lm model using broom
+tidy(model1) # <- a 'nice and neat' look at parameter estimate and statistic
+```
+Use the **display** function from the arm package to show a very simple output of model 2 (note: display is designed for models from the lme4 package) 
+```{r}
+# Use display from arm package
+arm::display(model1) #note that the default sig. dig. is 2
+```
+The null model (model1) has two parameters associated with it - the intercept and the residual error variance. Up until now we hadn't really considered residual error very much, we only focused on intercepts and slopes. But from now on we should also consider variances as model parameters too. Variance can be calculated by multiplying the square of the standard error by the sample size, or by squaring the standard deviation. The residual standard deviation from model1 is 0.77, which becomes 0.59 when squared. 
+
+```{r}
+0.77^2
+var(Nakagawa$Tarsus)
+sd(Nakagawa$Tarsus)^2 # to show that variance = sd^2
+signif(var(Nakagawa$Tarsus),2) # a way to set the number of significant digits to display
+```
+**So, the null model (i.e. the intercept model) is really just a way of showing the mean and variance of the response variable. In this example, the mean of tarsus 18.63 and the variance of tarsus is 0.59.**
+
+
+### Observe that the very simple mixed-effects model has an extra parameter
+Now use the **display** function to show a very simple output of model2. Remember, model2 was written as: model2<-lmer(Tarsus~1 + (1|ID),data=Nakagawa)
+
+```{r}
+arm::display(model2)
+```
+
+Let's look at the intercepts from the model for the first 6 birds:
+
+```{r}
+fixef(model2) ##extract fixed effect estimates
+head(ranef(model2)$ID) ## extract random effect estimates (difference between the fixed estimate and the response for each bird)
+
+```
+
+The intercept for the first bird, BirdID TA14502, deviates from the grand intercept (18.61511) by -0.1772903. So it should be close to 18.43782. Let's see if that is correct. 
+
+```{r}
+mTarsus<-tapply(Nakagawa$Tarsus,Nakagawa$ID,mean)
+head(mTarsus)
+```
+
+The function **coef** actually does the same thing automatically:
+
+```{r}
+head(coef(model2)$ID)
+```
+**There is one intercept per bird. When we wrote model2, we specified that there should be one intercept per bird by writing: (1 | ID).**
+
+note- whatever is on the right side of the | operator is a factor and is referred to as a “grouping factor”
+
+### Take home messages from comparing the two very simple models
+
+  * The simplest linear model (i.e. the null model; the intercept model) was written as: model1<-lm(Tarsus~1,data=Nakagawa). This model only had two parameters: the intercept and the residual error variance. The latter is basically the overall deviation from the mean (the mean = the intercept) across all data points. This model did not take into account that each bird was measured multiple times and that there was an associated variance in the repeated measures for each bird.
+  
+  * The simplest mixed effects model was written as: model2<-lmer(Tarsus~1 + (1|ID),data=Nakagawa). This model had three parameters: the grand intercept (i.e. the overall mean Tarsus), the deviations from the grand intercept by each bird (in this case 171 deviations because there were 171 birds), and the estimate of the variance for these 171 deviations.
+
+##Example 2- here we will run through and interpret a dataset you have seen previously.
+
+Medley and Clements (1998) investigated the impact of zinc contamination (and other heavy metals) on the diversity of diatom species in the USA Rocky Mountains. The diversity of diatoms (number of species) and degree of zinc contamination (categorized as either of high, medium, low or natural background level) were recorded from between four and six sampling stations within each of six streams. These data were used to test the null hypothesis that there were no
+differences in the diversity of diatoms between different zinc levels.
+
+We previously analyzed these data using a One-way ANOVA (Single-factor ANOVA). 
+We wrote our model like this: **medley.aov <- aov(DIVERSITY ~ ZINC, medley)**, 
+which examines how diversity (RV) is a function zinc levels (EV). However, 
+we ignored the fact that there were multiple sampling stations per stream. 
+This time we will re-examine the same dataset while controlling for the random 
+effects of "stream".
+
+## Step 1: Examine the Medley and Clements (1998) data
+```{r}
+head(medley)
+str(medley)
+```
+
+
+## Step 2: Reorganize the levels of the categorical factor into a more logical order
+This just reorders the zinc data. Because it is categorical, R would order the data 
+alphabetically, however, if we graph it then viewing the data by high, med, low, 
+background makes more sense than viewing it by back, high, low, med
+
+```{r}
+medley$ZINC <- factor(medley$ZINC, levels = c("HIGH", "MED", "LOW", "BACK"), ordered = F)
+```
+
+## Step 3: Build models
+Since we previously examined these data for normality etc., let's jump in and build 
+a mixed-effects model to test if diatom diversity is affected by zinc concentrations
+while controlling for stream. We'll actually build three models: 1) an intercept model;
+2) random effects only model; 3) mixed model.
+
+* RV = Diversity
+* EVs = level of zinc (fixed); stream (random)
+
+```{r}
+# Just for comparison:
+mod1 <- lm(DIVERSITY ~ 1, data = medley) # this is an intercept model (aka null model)
+mod2 <- lmer(DIVERSITY ~ 1 + (1|STREAM), data = medley) #this is a mixed-effects
+# model with only random factors
+mod3 <- lmer(DIVERSITY ~ ZINC + (1|STREAM), data = medley) # this is a mixed-effects  model with fixed and random factors
+summary(mod1)
+```
+
+## Step 4: Assess model diagnostics
+Check that residuals are approximately normally distributed. The output 
+  shows some slight outliers, but not bad.
+
+```{r}
+qqnorm(resid(mod3))
+qqline(resid(mod3))
+```
+
+# Step 5) Interpretation (part 1)
+First, let's back up for a minute to think about fixed and random effects a bit more.
+One way to think about them is that **fixed effects** are used for estimating associated
+regression coefficients (slopes), while **random effects** are used to estimate variance
+components (in our case we are using random effects to control for the variance associated
+with individual streams). We can partition our variance into "within-group" and 
+"between-group" variance.
+
+##The null model has information about the between group variance
+##The mixed-effects model with only random factors partitions the within-group variance
+
+## Examine the null model (aka intercept model)
+```{r}
+arm::display(mod1, digits=4)
+mean(medley$DIVERSITY)
+var(medley$DIVERSITY)
+```
+The null model ("model1" here) :
+
+  * Mean = 1.6941
+  * Residual sd = 0.5246; variance = sd^2 = 0.28 = total variance
+
+## Examine the mixed-effects model with only random factors
+```{r}
+arm::display(mod2, digits=4)
+```
+  * Residual sd = 0.5075; variance = sd^2 = 0.26 = represents "within-individual" 
+  variance. I.e. the variance WITHIN streams
+  * Stream sd = 0.1433; variance = sd^2 = 0.02 = represents the "between-individual"
+  variance. I.e. the variance BETWEEN streams
+  * Total variance = 0.02+0.26 = 0.28
+  * The residual variance in the mixed effects model (0.26) is less than the 
+residual variance in the null model (0.28), but it isn't very much less in this example.
+* A lot of the variation we see in diatom diversity is associated with within-individual
+(within-stream) variance (0.26). 0.26/0.28 = ~93%. **In this example, we can see just how
+important it is to consider within-stream variance when testing for the effects of zinc
+on diatom diversity.**
+  
+  NOTE: don't "fixate" on the value 93%. We will partition our variances again from
+  the final linear mixed-effects model**
+
+## Examine the full mixed-effects model
+### Start with **summary**
+Note - some of the explanation here was "borrowed" from: https://ourcodingclub.github.io/2017/03/15/mixed-models.html#presenting
+
+First, **summary()** function shows the results of the full mix-effects model. 
+The "Fixed effects" output is very similar to the output from a regular linear model
+- it has an intercept and error, and it has the slope estimates and associated errors.
+The "Random effects" provides information about how much of the variance is associated 
+with the levels of the grouping factors (in this case the different streams), 
+plus the residual variance. (In general, the residual variance (aka unexplained variance)
+is the variance of the difference between any variate *y* and its regression function *Y*.)
+
+```{r}
+summary(mod3)
+```
+
+The random effect of the stream is meant to capture ALL the influences of streams on diatom
+diversity - whether we observed/measured those influences or not, whether those influences are
+big or small *etc*. It could be from many small influences that, when combined, affect the 
+diatom diversity. We can see the variance for stream = **0.1179**. Streams are clearly important
+- they explain a lot of variation. We can take the variance for the stream and divide it by the 
+total variance: **0.1179/(0.1179+0.1285) = 0.4784903**, so the differences between streams explain
+**~48%** of the variance that’s **"left over" after the variance explained by our fixed effects**.
+
+
+### Partition all the variance estimates from the model
+https://easystats.github.io/insight/reference/get_variance.html
+
+```{r}
+v.fix<-get_variance_fixed(mod3)
+v.ran<-get_variance_random(mod3)
+v.res<-get_variance_residual(mod3)
+v.fix
+v.ran
+v.res
+```
+## How to report/interpret results
+If you read different published studies that used linear mixed-effects models,
+you will see that the reporting is not often standard. For this class here are
+some "standard" things you should report:
+
+  * 1) Report the fixed effects estimates. These represent the best-guess **average** effects 
+  in the population. I.e. these are estimated effects rather than actual means etc.
+  
+  * 2) Report the fixed effects confidence limits. NOTE we will treat 95% CIs a little differently than
+  we do with simpler models. With simpler models we can look at 95% CIs to compare 
+  treatment effects. For example, if the 95% CIs in treatment A overlap with treatment 
+  B in a simple linear model, we would know that the two treatment effects were not 
+  significantly different from one another. However, with a LMM we will report the 
+  *regular* 95% CIs for each fixed factor to understand the *strength*, but we will
+  use a different set of 95% CIs for pairwise comparisons (i.e. for post-hoc comparison; 
+  e.g. https://cran.r-project.org/web/packages/emmeans/vignettes/comparisons.html).
+  
+  So we will report both the regular 95% CIs for each fixed factor, and we can report 
+  the adjust 95% CIs that are used for pairwise comparisons.
+  
+  * 3) Report the variance explained by the fixed effects and by the random effects.
+  
+  * 4) Report the post-hoc comparisons.
+  
+Also see: https://ase.tufts.edu/gsc/gradresources/guidetomixedmodelsinr/mixed%20model%20guide.html
+
+# emmeans package
+The `emmeans` package in R provides tools for obtaining estimated marginal means (EMMs) or least-squares means (LS means) for factorial designs and other linear models, along with functions to explore and visualize these means.
+1) Report the fixed effects estimates (estimated marginal means, aka Least-Squares Means)
+and 2) their confidence limits
+ 
+(See: https://cran.r-project.org/web/packages/emmeans/emmeans.pdf).
+```{r}
+emmeans(mod3, "ZINC") # note- for the emmeans function, be sure that the variable 
+ # is a factor and that it is in quotations
+```
+You will see that the emmean and Se on the first line matches the first Fixed
+effects line from the **summary** output, and that the dfs are pretty similar. 
+The next lines give the actual estimates for each of the levels of the fixed factor
+
+Each estimate is an "Estimated Marginal Means" (EMM), taking into account the random effects.
+
+**Also note** that this is different from the output of the "summary" function for the mixed model,
+which gives the contrasts, or the differences between the first line and each of the rest.
+
+Make a plot that shows the fixed effects EMMs and their 95% CIs. The blue bars are 
+CIs for the EMMs. 
+```{r}
+plot(emmeans(mod3, "ZINC"), comparisons = FALSE)
+```
+
+From plot one, we can infer that the effect of MED, LOW, and BACK zinc concentration 
+is strong ("far" from zero) and that the effect of HIGH zinc is weaker. None of the 95% 
+CIs cross zero, so none of the effects are negligible. All of the CIs are roughly the 
+same width, so it is difficult to say much. Narrow CIs imply a lot of certainty in an 
+effect. Wide CIs imply less certainty. 
+
+Plot two is useful for post-hoc comparison (addressed in #4 below).
+
+#### 3) Report the variance explained by the fixed effects and by the random effects.
+From above:
+
+  * var.fixed  = 0.1511994 
+  * var.random =  0.117904 
+  * var.residual = 0.1285306 
+
+**"On average the effect of zinc on diatom diversity is moderate-strong (explains 
+15% of variance in diatom diversity [interpretation comes from knowing your system]), 
+but there is still considerable variation (11.8%) associated with the streams".** 
+
+#### 4) Post-hoc comparison
+
+#In this second plot, the blue bars contain red arrows. 
+```{r}
+plot(emmeans(mod3, "ZINC"), comparisons = TRUE)
+```
+The red arrows are for the comparisons among each level of the fixed effect. I.e. If an 
+arrow from one mean overlaps an arrow from another group, the difference is not 
+"significant", based on the adjust setting (which defaults to "tukey") and the 
+value of alpha (which defaults to 0.05).
+
+See: https://cran.r-project.org/web/packages/emmeans/vignettes/comparisons.html
+
+This plot shows that HIGH zinc is significantly different from BACK, LOW, and MED zinc.
+*I.e.* The effect of BACK, LOW, and MED zinc is greater than the effect of HIGH zinc on
+diatom diversity.
+
+******************************
+#### Nested random effects (borrowing heavily from Coding Club)
+
+Nested effects are like Russian nesting dolls.  Imagine a fertilisation experiment on 
+seedlings growing in a seasonal forest. Say you have 50 seedlings in each bed, with 
+10 control and 10 experimental beds. That’s 1000 seedlings altogether. And let’s 
+say you went out collecting once in each season in each of the 3 years. On each plant,
+you measure the length of 5 leaves. That’s 5 leaves x 50 plants x 20 beds x 4 seasons x 3 years
+or 60,000 measurements!
+
+But if you were to run the analysis using a simple linear regression, eg. leafLength ~ treatment ,
+you would be committing pseudoreplication, or massively increasing your sampling size
+by using non-independent data. With a sample size of 60,000 you would almost certainly get a “significant”
+effect of treatment which may have no ecological meaning at all. And it violates the assumption of 
+independance of observations that is central to linear regression.
+
+This is where "nesting"comes in; leaves within a plant and plants within a bed may
+be more similar to each other (e.g. for genetic and environmental reasons, respectively).
+You could therefore add a random effect structure that accounts for this nesting:
+
+leafLength ~ treatment + (1|Bed/Plant/Leaf)
+
+This way, the model will account for non independence in the data: the same leaves
+have been sampled repeatedly, multiple leaves were measured on an individual, and 
+plants are grouped into beds which may receive different amounts of sun, etc.
+
+ If all the leaves have been measured in all seasons, then that portion of the model would be considered
+ "crossed" as opposed to "nested" and could be written as:
+
+leafLength ~ treatment + (1|Bed/Plant/Leaf) + (1|Season)

@@ -11,6 +11,11 @@ In this class you are not required to have R and R studio on your computer. Inst
 
 Whether you are using the Posit Workbench or your own copy of R and R studio *please read* how to make an R markdown and knit it into a PDF document in Google Drive [here](https://docs.google.com/document/d/1UcIgMSbvkNwcmDWn6DbqxTigReI03nRXKk5FsekcPRA/edit?usp=sharing).
 
+
+```{r}
+library(tinytex)
+```
+
 # How to download both R and R Studio to your computer.
 
 First download R for your system at https://cran.rstudio.com/
@@ -73,6 +78,7 @@ Look for your object in the Environment Console. It is saved as a value. Differe
 Now, lets play with some data. We will first create a vector of numbers, then a matrix, followed by the dataframe.  A matrix is basically just more than one vector of the same length bound together. A dataframe is a matrix in which the values for a given row all correspond to the same “individual” whereas that isn’t necessarily the case with a matrix. Also, dataframes can consist of both factors and continuous variables.
 
 Factor: A factor in R is a categorical variable that can take on a limited number of unique values, known as levels. Factors are often used to represent categorical data, such as gender, species, or treatment groups.
+
 
 # The concatenate function c() binds together a group of numbers into a vector
 ```{r}
@@ -147,6 +153,8 @@ is.data.frame(df1)
 
 If you had used cbind(df1,plot) what type of object would you have created? (note this is a trick question)
 
+We wouldnt have created any object because its not assigned to a variable.
+
 # Now, back to that character plot that we created- it still exists:
 
 ```{r}
@@ -193,6 +201,8 @@ Error: object 'hi' not found
 and some more:
 
 max(xP), min(xP), sum(xP),mean(xP), sd(xp), median(xP),range(xP),var(xP),sort(xP) rank(xP),quantile(xP),cumsum(xP),cumprod(xP), etc.
+
+Done.
 
 Summary() is a generic function that is versatile and does different things depending on the type of object x might be; usually sensible and useful.
 
@@ -273,7 +283,7 @@ The tapply function applies a function to a vector separately for each level of 
 ```{r}
 tapply(temp, light, mean)
 ```
-How do you think you can calculate the standard deviation for eggs at each light level?
+c
 
 If you don't know the function for standard deviation try looking it up online, or use the Help search. Note there are lots of stardard deviation calculators in various R packages. We want the one that is with the built in "stats". Sometimes there are conflicting function names among package authors but you can always say the specific package you want to call by typing package::function for example stats::sd
 

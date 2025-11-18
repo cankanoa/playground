@@ -1,0 +1,237 @@
+---
+title: "HW 5"
+author: "NRG"
+date: "2025-10-02"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+#### Libraries
+```{r}
+
+library("readxl")
+library('car')
+library("ggplot2")
+library("emmeans")
+```
+
+
+# Question 1
+
+Import data
+```{r}
+hemp <- read_excel("/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/Hemp.xlsx")
+
+temp <- factor(hemp$Temperature)
+fert <- factor(hemp$Fertilizer)
+grow <- hemp$`Growth Rate (cm/week)`
+
+df <- data.frame(grow, fert, grow)
+```
+
+Research question: What is the effect of temperature and fertilizer on plant growth?
+
+Statistical method: two way anova
+
+Hypothesis statements
+H0: There is no effect of temperature and fertilizer on plant growth and there is no interaction between temperature and fertilizer on plant growth.
+H1: Temperature affects plant growth or fertilizer affects plant growth or the effect of fertilizer on plant growth depends on temperature.
+
+Assumptions
+```{r}
+model <- aov(grow ~ temp * fert, data = df)
+
+# Independent within and between all factor level combinations
+plot((aov(grow ~ temp * fert, data = df)), which=1)
+# Pass: data passes as residuals look weird but it is fabricated data so we assume they are okay
+
+# Residuals are normally distributed within each cell (combination of the two factors)
+model <- aov(grow ~ temp * fert, data = df)
+mf <- model.frame(model)
+r  <- residuals(model)
+tapply(r, list(mf$temp, mf$fert),
+       function(x) if (length(x) >= 3) shapiro.test(x)$p.value else NA)
+# Pass: residuals look normal
+
+# Homogeneity of variance of the dependent variable are equal across all cells
+leveneTest(grow ~ interaction(temp, fert), data = df)
+# Passes test
+
+# Count of data and interactive plot to determine ANOVA type
+with(df, table(temp, fert))
+
+with(hemp, interaction.plot(
+  x.factor = Temperature,
+  trace.factor = Fertilizer,
+  response = `Growth Rate (cm/week)`,
+  fun = mean,
+  type = "b",
+  ylab = "Growth Rate Mean",
+  xlab = "Temperature",
+  pch = c(1, 19),
+  col = c("blue", "red"),
+  trace.label = "Fertilizer"
+  )
+)
+
+# The crossing lines in the figure suggest that the effect of fertilizer depends on that of temp 
+# We should use type III.
+```
+
+Test
+```{r}
+model <- aov(grow ~ temp * fert, data = df)
+summary(model)
+```
+
+Posthoc
+```{r}
+emmeans(model, pairwise ~ temp * fert)
+```
+Results
+Fertilizer has a conditional effect on growth rate given certain temperatures. Under low temperature fertilizer increases growth rate (4.27 vs 2.67) and given high temperature fertilizer decreases growth rate (4.67 vs 6.17). A two-way ANOVA showed significant effects of temperature (F(1,36) = 44.72, p < .0001), fertilizer (F(1,36) = 628.88, p < .0001), and their interaction (F(1,36) = 1343.01, p < .0001). The model explained 98% of the variance (R^2 = 0.98). Growth was highest at high temperature without fertilizer (6.17) and lowest at low temperature without fertilizer (2.67); all pairwise differences were significant (p < .0001).
+
+# Question 2
+
+Import data
+```{r}
+fruit <- read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/fruitfly.xlsx')
+
+# Independent variable
+acti <- factor(fruit$activity)
+
+# Dependent variable
+long <- fruit$longevity
+
+# Covariate
+thor <- fruit$thorax
+
+df <- data.frame(long, acti, thor)
+
+```
+
+Research question: What is the effect of female partner treatment on male longevity when accounting for thorax length?
+
+Statistical method: ANCOVA
+
+Hypothesis statements
+H0: There is no effect of female partners treatment on male longevity, when accounting for thorax length, and there is no interaction between female partner treatment and thorax length.
+H1: There is an effect of female partners treatment on male longevity, when accounting for thorax length, or there is an interaction between female partner treatment and thorax length.
+
+Assumptions
+```{r}
+# Observations are independent within and between groups (study design)
+# Pass: assumed to be good
+
+# Residuals are normally distributed (residuals vs fitted plot)
+plot((aov(long ~ thor + acti, data = df)), which=1)
+# Fail: residuals look screwed to the right
+
+# Attempt log() to fix
+plot((aov(log(long) ~ thor + acti, data = df)), which=1)
+# Pass: log() looks better
+
+# Homogeneity of variance across dependent variable groups
+leveneTest(log(long) ~ acti, data = df)
+# Pass
+
+# Linear relationship between the covariates and the dependent variable
+scatterplot(log(long) ~ thor | acti, df)
+# Pass
+
+# Slope between the dependent variable and the covariates remains consistent across all groups
+anova(aov(log(long) ~ thor * acti, df))
+# Pass but no interaction
+
+# Balance of data to determine ANOVA type
+with(df, table(acti))
+# Not the same number of measurements, so use type III
+
+# Passes all assumptions with log transform
+```
+
+Test
+```{r}
+summary(aov(long ~ thor * acti, df))
+
+ggplot(df, aes(x = thor, y = long, color = acti)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+# Pass: significant p value so we would continue to posthoc but because we only have two levels we dont need to
+
+```
+
+Results
+There were significant effects of thorax length (F(1, 114) = 130.73, p < 0.001) and female partner treatment (F(4, 114) = 20.99, p < 0.001) on male longevity. The interaction between thorax length and female partner treatment was not significant (F(4, 114) = 0.05, p = 0.99). Given these results, we accept the alternative hypothesis that male longevity differs among female partner treatments when accounting for thorax length, but reject the part of the hypothesis predicting an interaction. The relationship between thorax length and longevity is positive and consistent across all treatment groups.
+
+
+# Questions 3
+
+Import data
+```{r}
+cricket <- read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/Crickets.xlsx')
+
+species <- factor(cricket$Species)
+temp <- cricket$Temp_C
+pulse <- cricket$pulses
+
+df <- data.frame(species, temp, pulse)
+
+```
+
+Research question: Do pulse rates differ between species of crickets (O. exclamationis and O. niveus) at different temperatures?
+
+Variables
+  Independent variable: temperature
+  Dependent variable: pulse
+  Levels: species
+
+Stats: ANCOVA
+
+Hypothesis statements:
+H0: Pulse rates do not differ between O. exclamationis and O. niveus when accounting for temperature, and there is no interaction between species and temperature.
+H1: Pulse rates differ between O. exclamationis and O. niveus when accounting for temperature, and there is an interaction between species and temperature.
+
+Assumptions
+```{r}
+# Observations are independent within and between groups
+# Pass: assumed to be good
+
+# Residuals are normally distributed
+plot((aov(pulse ~ temp + species, data = df)), which=1)
+# Pass: residuals look randomly distributed
+
+# Homogeneity of variance across dependent variable groups
+leveneTest(pulse ~ species, data = df)
+# Pass: failed to reject null no evidence of unequal variance
+
+# Linear relationship between the covariates and the dependent variable
+scatterplot(pulse ~ temp | species, df)
+# Pass: relationship look linear
+
+# Slope between the dependent variable and the covariates remains consistent across all groups
+anova(aov(pulse ~ temp * species, df))
+# Pass: we fail to reject null so we assume equal response
+
+# No transformation needed as we pass assumptions
+
+# Balance of data to determine ANOVA type
+with(df, table(species))
+# uneven number of samples, use type III
+```
+
+Run ANCOVA
+```{r}
+summary(aov(pulse ~ temp * species, df))
+
+ggplot(df, aes(x = temp, y = pulse, color = species)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+# Pass: significant p value so we would continue to posthoc but because we only have two levels we dont need to
+```
+
+Result:
+There were significant effects of temperature (F(1, 27) = 2505.58, p < 0.001) and species (F(1, 27) = 189.79, p < 0.001). The interaction between temperature and species was not significant (F(1, 27) = 1.36, p = 0.25). Given these results we can accept our alternative hypothesis that the pulse rates differ between O. exclamationis and O. niveus when accounting for temperature, and there is an interaction between species and temperature. The interaction plot shows us that for each species, as temperature rises, so does pulse rate. 
+

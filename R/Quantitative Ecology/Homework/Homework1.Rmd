@@ -1,0 +1,114 @@
+---
+title: "Homework1"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Case study 1. 
+
+## Init
+
+```{r}
+# install.packages("car")
+library(readxl)
+beak.finch <- read_excel("/Users/kanoalindiwe/Downloads/Projects/playground/Datasets/beak.finch.xlsx")
+year.cat <- as.factor(beak.finch$year) 
+```
+## 1. E
+```{r}
+summary(year.cat)
+```
+
+## 2. A/C
+```{r}
+tapply(beak.finch$depth, beak.finch$year, summary)["1976"]
+```
+
+## 3. B
+```{r}
+tapply(beak.finch$depth, beak.finch$year, summary)["1978"]
+```
+
+## 4. C
+```{R}
+hist(beak.finch$depth[beak.finch$year == 1976],
+     main = "Beak depth in 1976",
+     xlab = "Beak depth")
+
+hist(beak.finch$depth[beak.finch$year == 1978],
+     main = "Beak depth in 1978",
+     xlab = "Beak depth",)
+```
+
+## 5. A (however, the whiskers go to 1.5 times the IQR)
+```{R}
+boxplot(beak.finch$depth ~ beak.finch$year)
+```
+
+## 6. A
+```{r}
+t.test(beak.finch$depth ~ beak.finch$year)
+```
+
+## 7. A
+
+## 8. A
+
+# Case study 2.
+
+## Init
+
+```{r}
+macnally <- read_excel("/Users/kanoalindiwe/Downloads/Projects/playground/Datasets/macnally.xlsx")
+```
+
+## 1. EYR density is approximately normal, GST density is not normally distributed.
+```{r}
+boxplot(macnally$Density ~ macnally$Species, xlab="Species", ylab="Density")
+hist(macnally$Density[macnally$Species=="GST"], xlab="Density", main="Density Histogram (GST)")
+hist(macnally$Density[macnally$Species=="EYR"], xlab="Density", main="Density Histogram (EYR)")
+```
+## 2. Two sided test: failed to reject null that mean is different from 5.7. Less than test: Successfully rejected null. Greater than test: Failed to reject null.
+```{r}
+t.test(macnally$Density[macnally$Species=="GST"], mu=5.7)
+t.test(macnally$Density[macnally$Species=="GST"], mu = 5.7, alternative = "less")
+t.test(macnally$Density[macnally$Species=="GST"], mu = 5.7, alternative = "greater")
+```
+
+## 3. We fail to reject the null, there forfor we cannot say the data have significantly different means.
+```{r}
+eyr <- macnally$Density[macnally$Species == "EYR"]
+gst <- macnally$Density[macnally$Species == "GST"]
+t.test(eyr, gst, var.equal = TRUE)
+t.test(eyr, gst, var.equal = FALSE)
+```
+## 4. There is not significant difference in medians.
+```{r}
+wilcox.test(eyr, gst, alternative = "two.sided")
+```
+
+# Case study 1 Questions:
+1. Which function would you use to generate several basic summary stats for beak depth?
+2. Basic summary stats of beak depth for the year 1976 are (hint, use tapply 
+to get summary statistics by year):
+3. Basic summary stats of beak depth for the year 1978 are:
+4. Use the function "hist" to make histogram of finch beak depth for the years 1976 and 1978
+(make separate histograms for each year). An appropriate description of these figures is:
+5. Use the function "boxplot" to make a box plot of finch beak depth for the years 1976 and 1978
+(show both years in a single figure containing two box plots). An appropriate description of this
+figure is:
+6. Based on your results from the previous steps, choose a suitable statistical test for comparing
+beak size by year.
+7. Use R to run a statistical test for comparing beak size by year. What is your statistical
+conclusion?
+8. How should you describe the biological conclusion from your statistical test? If you chose Wilcox above now run Welch t test
+
+# Case study 2 Questions:
+1. Examine assumptions of parametric tests by creating boxplots and histograms of both bird species. Be sure to add appropriate labels to each plot. Describe the data distribution.
+
+2. Run a one sample t test for both a 2-sided and one-sided alternative (you specify the direction) comparing the mean for GST against a mu of 5.7. Report your results. Do you accept or reject the Null in each test?
+
+3. Run a two sample t test comparing EYR to GST (first assume equal variances, then run another test assuming unequal variances). Report results for each. Do you accept or reject the Null?
+
+4. Now run an appropriate non-parametric two-sample test

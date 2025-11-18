@@ -1,0 +1,228 @@
+---
+title: "Worksheet 7B"
+author: "Natalie Graham"
+date: "2025-08-01"
+output: pdf_document
+---
+
+Worksheet 7B- Multiplicative models
+
+# Multiplicative Model example - Paruelo and Lauenroth 1996 - p.230 in Logan.
+Paruelo and Lauenroth (1996) investigated the geographic (latitude and longitude) and
+climatic (mean annual temperature, means annual precipitation and the proportion of the
+          mean annual precipitation that fall in the periods June-August and December-February)
+patterns in the relative abundance of C3 plants throughout 73 sites across North America.
+
+* Question: most important factors influence C3 plants in N America?
+  * RV = relative abundance of C3 plants (C3)
+* EVs = we will focus on geographic parameters Latitude (LAT) and longitude (LONG)
+* other variables include Mean annual temp(MAT), mean annual precip (MAP),proportion of rainfall that falls in June-Aug and Dec-Feb (JJAMAP and DJFMAP)
+
+#### Load libraries
+```{r}
+library('car')
+library('foreign')
+library('msm')
+```
+
+## Get & check data
+```{r}
+Paruelo <- read_csv("data/Paruelo.csv")
+head(Paruelo)
+str(Paruelo)
+```
+
+## Scatterplot of all variables to assess assumptions of linearity, normality, variance
+```{r}
+scatterplotMatrix(Paruelo, diagonal=list(method="histogram")) # histogram of distribution
+scatterplotMatrix(Paruelo, diagonal=list(method="boxplot")) # boxplot of distribution
+```
+
+### Log-transform RV that is right-skewed: C3
+
+* Remember, log(0) cannot be evaluated so a small constant (in this case 0.1) is added to the count prior to the log transformation.
+* In R, the **log()** function computes natural logarithms for a number or vector; the **log10()** function computes common logarithms; **log(x,b)** computes logarithms with base b.
+* Include the log-transformed data with original dataframe.
+```{r}
+Paruelo<- transform(Paruelo, logC3 = log(C3 +0.1))
+```
+
+### Scatterplot matrixes with log-transformed data
+
+```{r}
+scatterplotMatrix(~ logC3 + MAP + MAT + JJAMAP + DJFMAP + LONG + LAT, 
+                  data= Paruelo,smooth=F , diagonal=list(method="boxplot"))
+
+scatterplotMatrix(~ logC3 + MAP + MAT + JJAMAP + DJFMAP + LONG + LAT, 
+                  data= Paruelo, diagonal=list(method="histogram"),
+                  smooth = F)
+```
+
+## Check assumption of multicollinearity between EVs
+
+* EVs are in columns 2 to 7
+* Which variables are highly correlated?
+
+```{r}
+cor(Paruelo[,2:7]) # why specified 2:7 here? # > 80% correlated is a good cut-off
+
+```
+** Further check for multicollinearity - variance inflation factor**
+  Values > 5 should be examined and potentially not included in model
+
+```{r}
+vif(lm(logC3 ~ MAP + MAT + JJAMAP + DJFMAP + LONG + LAT, data= Paruelo))
+```
+
+## Build Multiplicative Model 
+Because of issues of multicollinearity we will focus here on examining geographic influences 
+on C3 separately from climatic influences. For geographic influences, we will include an 
+interaction because we may predict that any latitude effect may depend
+on longitude and vice versa; (ex. longitude effects may only important at certain latitudes). 
+You can then focus on fitting a different full model with interactions for this dataset
+on Problem 2 in HW5. 
+
+```{r}
+C3.model <- lm(logC3 ~ LAT + LONG + LAT*LONG, data=Paruelo)
+```
+
+### Check assumptions of multicollinearity with new model
+```{r}
+vif(C3.model) #Values greater than 5 should be examined and potentially not included in model
+```
+
+### Center data because of correlation between main effects and interaction term
+Scale function subtracts mean value from each observation in the vector or column indicated. 
+**scale = F** tells R to not divide by the standard dev. Argument on the left will make a new 
+column in the dataset from the functions on the right.
+
+```{r}
+Paruelo$cLAT <- scale(Paruelo$LAT, scale = F)
+Paruelo$cLONG <- scale(Paruelo$LONG, scale = F)
+```
+
+### Build new model with centered data
+```{r}
+C3.Cmodel <- lm(logC3 ~ cLAT + cLONG + cLAT*cLONG, data=Paruelo)
+```
+
+### Verify that centering the data reduced multicollinearity issues
+**VIF**
+  Values greater than 5 should be examined and potentially not included in model
+```{r}
+vif(C3.Cmodel)
+```
+
+**Tolerance**
+  Values that are less than .20 should be examined further
+```{r }
+1/vif(C3.Cmodel)
+
+```
+### Residual plots 
+```{r}
+par(mfrow = c(2,2))#set plotting window
+plot(C3.Cmodel)
+par(mfrow = c(1,1))#reset plotting window
+```
+## Can also look at influence measures for an additional examination for high leverage
+```{r}
+influence.measures(C3.Cmodel) ## no Cook's D values anywhere near 1
+```
+## Model summary & Interpretation
+```{r}
+summary(C3.Cmodel)
+```
+#### Parameter estimates
+The summary shows:
+  
+* The intercept (mean) for logC3 = -1.273195
+* The slope for cLat = 0.111435
+* The slope for cLong = -0.005938
+* The slope for the interaction is: 0.005186
+
+Thus, a model equation looks like this:
+  logC3 = -1.273195 + (0.111435xcLAT) + (-0.005938xcLONG) + (0.005186xcLAT:cLONG) + residual errors
+
+
+#### Confidence interval of each parameter
+```{r}
+confint(C3.Cmodel)
+```
+
+#### Back transform parameter estimate because RV is log-transformed
+
+```{r}
+exp(confint(C3.Cmodel))
+```
+
+#### Examine partial regression plots 
+```{r}
+avPlots(C3.Cmodel)
+```
+
+#### Examine the interaction
+
+* How does the slope of LAT change as values of LONG change?
+  * Can examine range of values for latitude
+
+This is a little different than Logan.....To further investigate this interaction, 
+calculate the simple slopes of C3 plant abundance against latitude for a range of longitudes. 
+
+Examine values for longitude:
+```{r} 
+summary(Paruelo$cLONG) #lets use -15 to +15 at intervals of 5; remember, centered data
+```
+
+The above values range from ~-13 to +13 so, one simple strategy here could be to 
+create a sequence of longitudes ranging from -15 to 15 at intervals of 5:
+```{r}  
+at.LONG <- seq(-15, 15, 5) # remember that we are going to be dealing with centered values
+```
+
+Now retrieve coefficients from the model
+```{r}
+C3.Cmodel$coef
+```
+
+Now calculate slopes of LAT for different values of LONG
+* first argument identifies the 2nd coef in the C3.model = cLAT
+* second argument identifies the 4th coef in the C3.model = interaction LAT*LONG 
+and multiplies it by the different values of at.LONG
+* read the equation as the slope for LAT + change in the slope when examining specific
+values of LONG (ie. how LAT slope changes when the slope is adjusted for different values of LONG)
+```{r}
+(slopes <- C3.Cmodel$coef[2] + C3.Cmodel$coef[4]*at.LONG)
+
+```
+
+Don't forget to back-transform since RV was log-transformed.
+```{r}
+exp(slopes) 
+```
+**Conclusion:** For each 1° (1 unit) increase in latitude at eastern longitudes in N. America
+we expect an ~3.4% increase in median abundance of C3 plants, while at western longitudes in 
+N. America for each 1° increase in latitude we expect median abundance of C3 plants to increase
+by ~20.8%
+
+Note- the above can also be done by hand- for example:
+multiply the slope for the interaction (0.005186) x -15 and add that to the slope 
+for cLAT which is 0.1114 to get 0.034, (or 1.034 after taking exponent) which is the
+approximate ~3.4% increase in median abundance of C3 plants with each unit increase in latitude
+at eastern longitudes etc etc for each of the values of long from -15 to 15 in increments of 5.
+
+
+#### The End
+
+
+
+#https://www.youtube.com/watch?v=8YuuIsoYqsg
+#http://www.sthda.com/english/articles/40-regression-analysis/164-interaction-effect-in-multiple-regression-essentials/#interaction-effects
+#https://www.econometrics-with-r.org/8-3-interactions-between-independent-variables.html
+summary(C3.dat$cLONG) # recall that mean long = 0 for centered data
+summary(C3.dat$LONG) # mean value of Long = 106.4
+
+
+
+
+

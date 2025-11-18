@@ -1,0 +1,393 @@
+---
+title: "Worksheet 9 Logistic Regression"
+author: "Natalie Graham"
+date: "2025-08-01"
+output: pdf_document
+---
+# Goals
+
+  * Introduce Generalized Linear Models (GLMs) and explore Logistic Regression. 
+  * See Logan, Chapter 17
+
+#### Load libraries
+```{r}
+library(readxl)
+library(car) #assumption diagnostics
+library(ResourceSelection) # Goodness of fit test
+library(MuMIn) # Model Selection
+library(ggplot2)
+```
+
+# read in data
+```{r}
+polis <- read_excel("~/data/polis.xlsx")
+bolger <- read_excel("~/data/bolger.xlsx")
+```
+# Background to Generalized Linear Models (GLMs)
+
+There are 3 Components of a GLM:
+
+  * Response variable (RV)
+  * Explanatory variables (EV) - categorical, continuous, or both
+  * Link Function
+      + This is new! It is used to specify what kind of data distribution you have for the RV
+      + Links Random RV to EV using equation below.
+      + Based on the distribution of the response variable (e.g., normal, binomial, Poisson,        gamma, and negative binomial). 
+      
+## The general equation is: g(μ) = β0 + β1X1 + β2X2 + ...
+
+  * Where g(μ) represents the link function – structure that links the expected values of the     response to the linear combination of the explanatory variables.
+  * Appropriate link function depends on the distribution of the response variable
+      + Normal Distribution = Gaussian (Link = Identity) | g(μ) = μ
+      + Binomial Distribution = Binomial (Link = Logit or log-odds) | g(μ) = log[(μ /(1- μ)]
+      + Count Distribution = Poisson (Link = Log) | g(μ) = log(μ)
+      + these are easy to specify in R! We’ll take a look at the different distributions too.
+
+  * β0, β1, β2 represent parameters to be estimated (analogous to general linear models)
+
+Analysis of GLM uses maximum likelihood estimates (MLE) instead of Least Squares (LS) method used in general linear models (i.e. most of the linear models we’ve been doing, with the lm() function.
+
+  * LS estimates try to minimize the sum of the least squared residuals, that is, the distance between the line and each observation
+  * MLE calculates the likelihood (the probability of the observed outcome) given a particular   choice of parameters – want to maximize the likelihood function 
+
+To run a generalized linear model in R, use the function **glm()**
+
+  * Argument contains a family associated with the distribution of the response variable (e.g. Gaussian [normal distribution], binomial [binary distribution])
+  * Example: glm(formula, family=familytype (link=linkfunction), data=)
+
+
+# Logistic Regression (Binary Responses)
+
+## Purpose
+Researchers are often interested in performing regression when the response variable is categorical.
+
+  * Binary logistic regression may be used when the response variable has two categories.
+  * Linear regression models are usually inadequate for binary responses because they can permit probabilities of less than zero and greater than one. 
+  * Consider a binary response variable of presence or absence. Either something is present or it is not. Its "presence" cannot be less than 0 or greater than 1. Linear regression models are usually inadequate for binary responses because they can permit probabilities of less than zero and greater than one.
+
+* Logistic Regression GLM uses the logit link function, where the logit function is the log of the odds p/1-p, where p is a probability. This function creates a curve of probability values that range from 0 to 1.
+
+  * Observe Figure 17.1 in Logan The lefthand graph shows the result of fitting a linear regression to binary data. The righthand graph shows a logistic regression fit to the same data.
+
+![Figure 17.1](~/Homework 8 logistic regression/logistic regression.tif)
+
+## Hypothesis
+
+  * β1 = 0 (slope = 0)
+  * i.e., there is no relationship between the binary response variable and individual predictor variable (tested separately for each predictor)
+
+## Assumptions
+
+  * Independent observations
+
+  * No influential observations
+    * Test using function influence.measures() 
+
+  * Examine Dfbeta - an analogue of Cook’s D statistic which measures the standardized change in the coefficient b1 when an observation is deleted. Can also examine dfb.Ratio 
+
+  * To test the strength of the influential observations identified on parameter estimates you can compare parameter estimates with and without the observations using the function compareCoefs() (car package)
+
+  * For 2 or more explanatory variables assumes absence of strong collinearity 
+
+  * To test use same functions as in multiple regression: scatterplotMatrix(), cor(), vif() (car package)
+
+  * Neither normality or homoscedasticity are assumed.
+
+  * Relationship between each EV and link function is assumed to be linear (Does NOT assume linear relationship between RV and EVs)
+
+  * Test using function crPlots (partial residual plot – car package)
+
+  * Data are not over-dispersed (under-dispersed data is rare)
+  
+  
+## Overdispersion
+**Overdispersion occurs when the variance is greater than the mean**. Overdispersion occurs because there is:
+
+  1) clustering in the data due to non-independence of observations, or
+  2) other factors, which were not measured, influence the RV in heterogeneous 
+ways. For example, we might model number of plant species per plot (or presence/absence) against soil pH in a forest; if unmeasured nutrient levels also vary greatly between plots, then variance in the number of species may be greater than the mean
+
+Overdispersion results in an underestimate of the true error in the model (e.g., standard errors) and thus standard errors of estimated parameter estimates will be smaller than they should and tests of hypotheses will have inflated probabilities of Type I error.
+
+  * We estimate over-dispersion (ĉ) by calculating: Residual deviance / df of deviance
+  * As a general rule, dispersion parameters approaching 2 (or < 0.5 for under dispersion) indicate possible violations of this assumption
+    
+    
+**Ways to deal with overdispersion in models**
+
+  * In glm model, use the argument **family = quasibinomial** instead of **binomial**. The dispersion parameter will not be fixed at 1, so the model can take into account overdispersion
+  * For model selection, use the argument rank = "QAIC" or "QAICc"" instead of the default "rank = AIC". This will replace the likelihood with the quasi-likelihood which will incorporate variance inflation factor or ĉ into the model
+  
+
+## Interpretation of Binary Logistic Regression
+
+  * β0 (y-intercept) – same interpretation as linear regression
+  * βx (parameter estimate) – represents the rate of change in the log odds for a given unit change in the explanatory variable
+
+## Odds Ratio
+We usually discuss parameter estimates in terms of the odds ratio
+  * Exponential of the slope (e.g., exp(βx))
+  * Represents the proportional rate at which the predicted odds (response variable) changes for a given unit of change of the explanatory variable
+
+## Predictions
+
+  * Calculate predictions of the binary response based on fitted model – graph these results. Code for this is included in the examples below.
+
+
+# Example 1 - Simple logistic regression, Logan pages 498 - 503
+Polis et al. (1998) studied the factors that control spider populations on islands in the Gulf of California. Potential predators included lizards of the genus Uta and scorpions. We will use their data to model the presence/absence of lizards against the ratio of perimeter to area for each island.
+
+  * RV = PA = Presence/Absence of Uta lizards (1= Presence so parameter estimates are for presence compared to absence)
+  * EV = Ratio = Perimeter to area ratio of the islands P to A
+
+## 1) Get & check Polis data
+Note that PA = presence/absence. 1=Presence; 0=Absence
+
+```{r}
+head(polis)
+str(polis)
+```
+
+## 2) Build GLM logistic regression model
+Use glm function with family = binomial for binary logistic regression
+```{r}
+lizard.glm <- glm(PA ~ Ratio, family = binomial, data = polis)
+summary(lizard.glm)
+```
+
+Just for fun, compare to linear model - **note- This is wrong!!!!!**
+```{r}
+rod.lm <- lm(PA~Ratio, data = polis)
+summary(rod.lm)
+rm(rod.lm) # remove this model from R's memory
+```
+
+## 3) Examine Goodness of fit 
+Using Hosmer-Lemeshow Goodness of Fit. Although linearity between response and predictors is not assumed, the relationship between each of the predictors and the link function is assumed to be linear. The Hosmer-Lemeshow GOF can examine linearity. With these tests, we are checking the lack of fit and appropriateness of the model with goodness-of-fit tests. Note- I have found this should mainly be used with simple logistic models (one EV)
+
+  * A p-value > 0.05 would suggest that model is appropriate
+
+
+```{r}
+hoslem.test(polis$PA, fitted(lizard.glm)) 
+```
+Our p>0.05, so model is appropriate
+
+## 4) Examine overdispersion by examining Residual deviance/df
+Estimated Dispersion parameter values approaching 2 would suggest overdispersion. This can be examined from the model output that gives residual deviance and residual df. For a well-fitting model, the residual deviance should be "close"" to the degrees of freedom. If the residual deviance is far from the df, this may result from overdispersion, where the variation is greater than predicted by the model. This can happen for a Poisson model, for example, when the actual variance exceeds the assumed mean (next class).
+# Residual deviance: 14.221  on 17  degrees of freedom
+Our results = close to 1 so suggests data is not overdispersed.
+#Can also examine using code below:
+```{r}
+lizard.glm$deviance #residual deviance
+lizard.glm$df.residual #residual df
+lizard.glm$deviance/lizard.glm$df.residual 
+```
+ 
+**We can also use a “deletion test” using the function “Chisq” to compare the residual deviance of the model with the explanatory variable vs a model without that explanatory variable (in this case the null model). In other words, deletion tests assess the significance of the increase in deviance that results when a given term is removed from a model. 
+Result: the null model had a higher deviance residual than the full model, indicating the full model (with PA as the explanatory variable) is better (difference in deviance = -12.066, df = 1, P < 0.001. )
+
+```{r}
+lizard.null <- glm(PA ~ 1, family = binomial, data = polis)
+anova(lizard.glm, lizard.null, test = "Chisq")
+rm(lizard.null)
+```
+## 5) Check for linearity
+Check for linearity between the log odds ratio of lizard presence and perimeter to area ratio with a component+residual plot (i.e., also called the partial residual plot). You’re looking for linearity in the plot, which would indicate an appropriate link function for your GLM. If the plot shows a non-linear pattern, consider transforming the predictor or using a different link function.
+```{r}
+crPlots(lizard.glm) # looks good!
+```
+
+## 6) Check for outliers or influential data points
+Observation #3 has high dfb.Ratio value compared to other points, but most things look to be in order. 
+```{r}
+influence.measures(lizard.glm) 
+```
+
+## 7) Interpretation
+```{r}
+summary(lizard.glm)
+```
+See the summary output: **Conclusion:** Reject the null hypothesis. An increase in perimeter to area ratio was associated with a significant decline in the chances of Uta lizard presence on the Gulf of California Islands (b = -0.2196, z = -2.184, p = 0.0289). The Estimate for RATIO indicates that for each unit increase in RATIO, the log of the odds of presence (vs absence) decreases by 0.2196. Note how I reported the slope, the z-value, and the p-value for a GLM.
+
+
+
+### 9.2) Calculate odds ratio
+#Remember from above- 
+* βx (parameter estimate) – represents the rate of change in the log of odds for a given unit change in the explanatory variable. We also usually discuss parameter estimates in terms of the odds ratio.
+## If we want to determine odds ratios, we exponentiate the log of the odds (-.2196), and get 0.802. This means that for a one unit increase in RATIO, the odds of presence (vs non-presence) increase by a factor of .802. In R:
+
+```{r}
+#exp(-.2196) = 0.802, or:
+exp(lizard.glm$coef)
+
+# To calculate CI’s for the odds ratio:
+exp(confint(lizard.glm)) # 95% CI of odds ratio
+```
+Biological Interpretation: The chances of Uta lizards being present on an island decline by 0.8028734 (i.e. a 19.7% reduction; 95%CIs = .615-.935) for every unit increase in perimeter to area ratio.
+
+
+### 9.3) Graph
+**Calculate predicted values for response variable based on fitted model**
+We want to predict the presence/absence of lizard for different values of Ratio, so we must create a new dataframe with a range of values for RATIO to add predicted probabilities. First get the min and max data values, then choose an appropriate data range to model. Then calculate predicted values. **cbind** tells R to combine predicted values to the new.data dataframe into a new dataframe, here named **pp.lizard**,
+**predict** calculates predicted values for response values based on the glm model **lizard.glm**, and includes standard error calculations. The pp.lizard dataframe: fit = predictions; se.fit = estimated standard errors; don't worry about residual.scale.
+
+```{r}
+min(polis$Ratio)
+max(polis$Ratio)
+new.data <- data.frame(Ratio= seq(0,70,10))
+pp.lizard <- cbind(new.data, predict(lizard.glm, newdata = new.data)) 
+
+new.data2 <- data.frame(Ratio= seq(0,70,5))
+pp.lizard2 <- cbind(new.data2, predict(lizard.glm, newdata = new.data2, 
+                                     type = "response", se = TRUE))
+
+pp.lizard
+pp.lizard2
+```
+**Graph results based on predicted values**
+```{r}
+# Construct a base plot (plots actual data)
+par(bty = "l") # only include x and y -axis lines for the plot 
+plot(PA~Ratio, data = polis,
+     xlab = "Perimeter to area ratio",
+     ylab = "", # leave blank and will write expression below,
+     pch = 16, # type of point
+     las = 1) # makes axis labels all horizontal
+# add predicted values and 95% CI bands using lines
+lines(fit ~ Ratio, data = pp.lizard2, # plot fitted values by Ratio from dataframe pp.lizard 
+      type = "l", #type of points = line,
+      col = "gray", # color of line
+      lwd = 2, lty = 1) # width and type of line
+lines(fit - se.fit ~ Ratio, data = pp.lizard2, # plot lower CI 
+      type = "l", #type of points = line
+      lwd = 1, lty = 2) # width and type of line
+lines(fit + se.fit ~ Ratio, data = pp.lizard2, # plot upper CI 
+      type = "l", #type of points = line
+      lwd = 1, lty = 2) # width and type of line
+# add text to y-axis using mtext  
+## expression allows you to make text italics or use mathematical formulas
+## paste tells R to place together text indicated / ~ = space between words
+mtext(expression(paste(italic(Uta), ~"presence/absence")),
+      side = 2, # side = 2 = place on left side
+      line = 3,
+      las = 3) # line indicates placement of the label
+
+```
+
+```{r}
+
+# Create a ggplot
+ggplot(polis, aes(x = Ratio, y = PA)) +
+  geom_point(shape = 16) +  # Add actual data points
+  geom_line(data = pp.lizard2, aes(y = fit), color = "gray", size = 1.5, linetype = 1) +  # Add predicted values
+  geom_line(data = pp.lizard2, aes(y = fit - se.fit), color = "gray", size = 0.5, linetype = 2) +  # Add lower CI
+  geom_line(data = pp.lizard2, aes(y = fit + se.fit), color = "gray", size = 0.5, linetype = 2) +  # Add upper CI
+  labs(x = "Perimeter to area ratio", y = "") +
+  theme_minimal() +
+  theme(axis.title.y = element_blank()) +  # Leave y-axis title blank
+  annotate("text", x = max(polis$Ratio) * 0.9, y = max(polis$PA) * 0.9, label = expression(paste(italic(Uta), ~"presence/absence")), angle = 90, vjust = 1, hjust = 1)
+
+```
+
+# Example 2 - Multiple logistic regression, Logan pp. 503 – 510 (note- turn this in as problem 1 of HW 7)
+
+Bolger et al (1997) investigated the impacts of habitat fragmentation on the occurrence of native rodents.  Modeled the presence/absence of any species of native rodent (except *Microtus californicus*) against three predictor variables: distance (meters) to nearest source canyon (DISTX), age (years) since fragment was isolated by urbanization (AGE), and percentage of fragment area covered in shrubs (PERSHRUB)
+
+  * RV = RODENTSP
+  * EVs = DISTX, AGE, PERSHRUB
+
+**Work through this example using above code and help from Logan 503-510. It's a good one because it also includes model selection!**
+
+## 1) Check collinarity of explanatory variables
+```{r}
+cor(bolger[,1:3])
+```
+## 2) Specify a full model (note- keep all variables that correlate below 0.80)
+```{r}
+bolger1<-glm(RODENTSP~DISTX+AGE+PERSHRUB, bolger, family = binomial)
+```
+# use function "summary" to summarize model
+
+## 3) examine for overdispersion (Residual deviance/residual df)
+
+## 4)Check for linearity
+```{r}
+crPlots(bolger1)
+```
+## 5) Check for influential observations
+```{r}
+influence.measures(bolger1)
+```
+## 6) interpret best model and examine odds ratio for presence of rodents (based on the full model)
+
+*use exp(coef(bolger1)) to get odds ratios
+```{r}
+exp(coef(bolger1))
+```
+
+## 7) use AIC to determine the best model (use functions “dredge”, “model.avg”, “summary” and “importance” from library MuMIn), and using model below:
+```{r}
+bolger2<-glm(RODENTSP~DISTX+AGE+PERSHRUB, binomial, bolger, na.action="na.fail")
+```
+##use deletion tests to compare best model with the next best model(s) as 
+ a final way to determine whether to include specific explanatory variables (see Textbook example for this)  
+ 
+## Re-interpret best model based on model averaging results
+ 
+   
+## extra, but not required! Produce a graph that illustrates the relationship between percent shrub cover and presence/absence of rodents
+ 
+***********************************************************************
+
+Logistic regression with categorical predictors
+The models and code below provide a final overview of how to interpret logistic output, this time including a categorical predictor. We will run through this in class if there is time.
+
+Logistic regression model to predict the odds of being admitted to graduate school based on combined GRE and GPA scores
+```{r}
+
+logitmodel <- glm(admit ~ gre + gpa + rank, data = mydata, family = "binomial")
+
+summary(logitmodel)
+```
+Call:
+## glm(formula = admit ~ gre + gpa + rank, family = "binomial", 
+##     data = mydata)
+## 
+## Deviance Residuals: 
+##    Min      1Q  Median      3Q     Max  
+## -1.627  -0.866  -0.639   1.149   2.079  
+## 
+## Coefficients:
+##             Estimate Std. Error z value Pr(>|z|)    
+## (Intercept) -3.98998    1.13995   -3.50  0.00047 ***
+## gre          0.00226    0.00109    2.07  0.03847 *  
+## gpa          0.80404    0.33182    2.42  0.01539 *  
+## rank2       -0.67544    0.31649   -2.13  0.03283 *  
+## rank3       -1.34020    0.34531   -3.88  0.00010 ***
+## rank4       -1.55146    0.41783   -3.71  0.00020 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 499.98  on 399  degrees of freedom
+## Residual deviance: 458.52  on 394  degrees of freedom
+## AIC: 470.5
+
+
+•	The output shows the coefficients, their standard errors, the z-statistic (sometimes called a Wald z-statistic), and the associated p-values. Both gre and gpa are statistically significant, as are the three terms for rank. The logistic regression coefficients give the change in the log odds of the outcome for a one unit increase in the predictor variable.
+
+◦	For every one unit change in gre, the log odds of admission (versus non-admission) increases by 0.002.
+
+◦	For a one unit increase in gpa, the log odds of being admitted to graduate school increases by 0.804.
+
+
+◦	The indicator variables for rank have a slightly different interpretation. For example, having attended an undergraduate institution with rank of 2, versus an institution with a rank of 1, decreases the log odds of admission by -0.675.
+◦	
+We can test for an overall effect of rank using the wald.test function of the aod library (analysis of overdispersed data). The order in which the coefficients are given in the table of coefficients is the same as the order of the terms in the model. This is important because the wald.test function refers to the coefficients by their order in the model. We use the wald.test function. b supplies the coefficients, while Sigma supplies the variance covariance matrix of the error terms, finally Terms tells R which terms in the model are to be tested, in this case, terms 4, 5, and 6, are the three terms for the levels of rank.
+wald.test(b = coef(logitmod), Sigma = vcov(logitmod), Terms = 4:6)
+## Wald test:
+## Chi-squared test:
+## X2 = 20.9, df = 3, P(> X2) = 0.00011
+The chi-squared test statistic of 20.9, with three degrees of freedom is associated with a p-value of 0.00011 indicating that the overall effect of rank is statistically significant.

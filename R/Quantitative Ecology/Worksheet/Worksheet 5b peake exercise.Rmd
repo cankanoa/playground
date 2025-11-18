@@ -1,0 +1,118 @@
+---
+title: "Worksheet 5a"
+author: "Natalie Graham"
+date: "2025-08_01"
+output: pdf_document
+---
+## Introduction
+
+In this exercise, we will work through the Peake example, which examines the relationship between area (dependent variable) and abundance of non-mussel invertebrates (response variable: INDIV) from 35 intertidal mussel clumps. Students will work in pairs from Steps 1-6 in Logan to gain experience with diagnostics, transformations, model interpretation, and new techniques for making a publishable scatterplot to summarize findings. We will work through Step 7 together as a class.
+
+## Steps 1-5
+
+First, read in the "peake" dataset and install the necessary packages.
+
+```{r setup, include=FALSE}
+#note you will need to run install.packages("gplots")
+library(gplots)
+library(car)
+library(ggplot2)
+```
+
+Read in peake
+```{r}
+peake <- read_excel("~/data/peake.xlsx")
+
+```
+
+View the data and create scatterplots
+```{r}
+peake
+scatterplot(INDIV ~ AREA, data = peake)
+scatterplot(log10(INDIV) ~ log10(AREA), data = peake)
+```
+
+Fit a linear model and summarize it.
+```{r}
+peake.lm <- lm(log10(INDIV) ~ log10(AREA), data = peake)
+summary(peake.lm)
+```
+
+Plot the model and check influence measures.
+```{r}
+plot(peake.lm)
+influence.measures(peake.lm)
+summary(peake.lm)
+```
+
+Create a scatterplot with custom axes and labels using base R
+```{r}
+plot(INDIV ~ AREA, peake, pch = 16, axes = FALSE, xlab = "", ylab = "", log = "xy")
+axis(1, cex.axis = .8)
+mtext(text = expression(paste("Mussel clump area", (mm^2))), side = 1, line = 3)
+axis(2, las = 1)
+mtext("Number of Individuals", side = 2, line = 3)
+abline(peake.lm)
+text(30000, 30, "log of indiv vs area")
+text(1000, 30, "log of indiv vs area")
+
+```
+
+Try plotting the same plot with ggplot
+```{r}
+
+
+```
+
+# Predicting Values
+Use the fitted linear model to predict the number of individuals at given areas. Use the predict function to get the fitted values and confidence intervals. 
+
+The predicted values from predict(peake.lm, newdata) will be on the log10 scale. To convert these predictions back to the original scale of INDIV, you need to exponentiate them:
+original_scale_predictions <- 10^predict(peake.lm, newdata)
+
+*predict*
+The predict function in R is used to generate predicted values from a fitted model. When you use predict(peake.lm, newdata), it returns the predicted values on the same scale as the response variable used in the model.
+
+Thus use *10^predict* or another transformation to predict...
+When you are transforming the predicted values from the transformed scale back to the original scale. 
+
+```{r}
+# Predict the fitted values and confidence intervals
+predicted_values <- 10^predict(peake.lm, data.frame(AREA = c(8000, 10000)))
+predicted_values
+
+```
+
+Fit confidence intervals around these predictions.
+
+```{r}
+confidence_intervals <- 10^predict(peake.lm, data.frame(AREA = c(8000, 10000)), interval = "prediction")
+confidence_intervals
+
+```
+
+Add 95% confidence bands to the plot.
+
+```{r}
+plot(log10(INDIV) ~ log10(AREA), data = peake, pch = 16)
+x <- seq(min(peake$AREA), max(peake$AREA), length.out = 1000)
+y <- predict(peake.lm, data.frame(AREA = x), interval = "confidence")
+matlines(log10(x), y, lty = 1, col = 1)
+
+```
+
+Here’s how you can create the same plot using ggplot2 (so easy!):
+
+```{r}
+
+# Create the base plot
+ggplot(peake, aes(x = log10(AREA), y = log10(INDIV))) +
+  geom_point(shape = 16) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  labs(x = expression(paste("log10(Mussel clump area ", (mm^2), ")")),
+       y = "log10(Number of Individuals)") +
+  theme_minimal()
+```
+So with ggplot...
+geom_smooth(method = "lm", se = TRUE, color = "blue", fill = "lightblue") adds the linear regression line with 95% confidence bands. The fill parameter specifies the color of the confidence bands. But To change the confidence level to 99% in ggplot2, you can use the level parameter within geom_smooth (e.g. level = 99)
+

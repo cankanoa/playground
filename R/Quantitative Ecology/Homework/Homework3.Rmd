@@ -1,0 +1,108 @@
+---
+title: "Homework3"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# PART 1:
+Keough and Raimondi looked at the effects of four biofilm types on recruitment of serpulid larvae (see Logan page 268 for more info). Is recruitment different among the biofilm types? 
+
+```{r}
+# 1. Import the Keough dataframe
+library(readxl)
+library(car)
+```
+
+2. Understand how to formulate the Null and Alternate hypotheses
+
+H0: The mean recruitment of serpulid larvae is equal across all four biofilm types.
+
+H1: At least one biofilm type has a mean recruitment that differs from the others.
+
+```{r}
+
+# Read data
+data <- read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/keough.xlsx')
+
+
+# 3. Check assumptions of ANOVA with boxplots and histogram and normality test 
+# Test for normality
+boxplot(SERP ~ BIOFILM, data = data)
+for (g in unique(data$BIOFILM)) {
+  hist(data$SERP[data$BIOFILM == g],
+       main = paste("BIOFILM =", g),
+       xlab = "SERP")
+}
+
+by(data$SERP, data$BIOFILM, function(x) shapiro.test(as.numeric(na.omit(x))))
+qqPlot(data$SERP)
+
+# 4. Check assumptions for violations of unequal variances
+# Test for equal variances
+leveneTest(SERP ~ BIOFILM, data = data)
+
+
+# Log for normality
+data$log_SERP <- log(data$SERP)
+
+# 5. Transform data to improve normality and heteroscedasticity. Recheck assumptions.
+# Test for normality again
+boxplot(SERP ~ BIOFILM, data = data)
+for (g in unique(data$BIOFILM)) {
+  hist(data$SERP[data$BIOFILM == g],
+       main = paste("BIOFILM =", g),
+       xlab = "SERP")
+}
+
+by(data$SERP, data$BIOFILM, function(x) shapiro.test(as.numeric(na.omit(x))))
+qqPlot(data$SERP)
+
+# Test for equal variances again
+leveneTest(SERP ~ BIOFILM, data = data)
+
+
+# 6. Run ANOVA with transformed data
+# Run ANOVA
+anova <- aov(log_SERP ~ BIOFILM, data = data)
+summary(anova)
+
+```
+
+
+7. Provide a 1-2 sentence summary of the outcome, and report results (df, F, and P values). Do you accept or reject the NULL? 
+
+The results of the ANOVA indicate that we can accept out alternative hypothesis that at least one biofilm type has a mean recruitment that differs from the others. This is supported by these results: F(3, 24) = 6.006, p = 0.00334.
+
+8. Run a post Hoc Tukey’s test (if results were significant). Include the Tukey results statement in report format (as a summary or table) for the Tukey’s results as well as a Tukey’s plot showing 95% CI’s
+
+
+```{r}
+# Hoc Tukey’s
+tuk = TukeyHSD(anova)
+tuk
+plot(tuk)
+```
+
+Given the acceptance of the alternative hypothesis in the ANOVA, we run Tukeys post hoc which shows SL-F, SL-NL, and UL-SL have statistically different means while the others do not.
+
+# PART 2:
+Now examine the dataset above using an appropriate non parametric alternative to the One Way ANOVA.  	
+
+1. State appropriate null and alternative hypotheses
+
+H0: The median recruitment of serpulid larvae is equal across all four biofilm types.
+
+H1: At least one biofilm type has a median recruitment that differs from the others.
+
+2. Run the non-parametric test and if appropriate, run a non-parametric pairwise comparison (using the Bonferroni adjustment).
+```{r}
+kruskal.test(log_SERP ~ BIOFILM, data = data)
+
+pairwise.wilcox.test(data$log_SERP, data$BIOFILM, p.adjust.method = "bonferroni")
+```
+
+3. Provide a 1-2 sentence summary of the outcome, and report results (df, F, and P values). Do you accept or reject the NULL?
+
+The results of the non-parametric Kruskal-Wallis test indicate post hoc is necessary. The post hoc shows that one mean differ between the groups, which is NL-SL, indicating we can acept our alternative hypothesis that least one biofilm type has a median recruitment that differs from the others.
+

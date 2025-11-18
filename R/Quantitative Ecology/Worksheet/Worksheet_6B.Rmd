@@ -1,0 +1,291 @@
+---
+title: "Worksheet 6B ANCOVA Example"
+author: "NRG"
+date: "2025-09-30"
+output: html_document
+---
+
+#Logan Chapter 15
+
+#Analysis of Covariance (ANCOVA) models are basically ANOVA models that incorporate 
+  a continuous variable (the covariate). In these models, we generally have a single 
+  continuous response variable, a single categorical explanatory (predictor) variable, 
+  and a single continuous explanatory variable. While the relationship between the 
+  response and the covariate may be of interest, ANCOVAs are typically run to reduce
+  the amount of unexplained variability between the categorical explanatory variable
+  and the response. This is achieved by adjusting the response (to each treatment)
+  based on the relationship between the response and the covariate.
+
+#Example1:
+  “Imagine you would like to analyze the impact of the dog’s breed on the dog’s 
+    weight, controlling for the dog’s age. Without controlling for the dog’s age,
+    you might never be able to identify the true impact of the dog’s breed on its
+    weight. You, therefore, need to run an ANCOVA to ‘filter out’ the effect of
+    the dog’s age, to see if the dog’s breed still influences the weight. 
+    Controlling for another covariate might strengthen or weaken the impact of 
+    your independent variable of interest". 
+    https://towardsdatascience.com/doing-and-reporting-your-first-anova-and-ancova-in-r-1d820940f2ef
+
+# Example 2 (From Logan)- An experiment is set up to examine the energetic impacts
+  of reproduction type (sexual vs parthenogenetic reproduction) on food consumption 
+  (the response) in an insect. Researchers measure the food intake from both sexual 
+  and parthenogenetic individuals, but both populations have a high degree of variability
+  in body size, which may cloud the effect of reproduction type on the response 
+  (food intake). So, the researchers decide to also measure the body mass of the 
+  individuals as a covariate. This provides a way to standardize daily food consumption
+  by body mass. 
+
+#Note that you can fit these models using the function **aov** as well as using 
+the function **lm**. Which one you choose affects how to generate the model output. 
+
+** Additional websites you might want to check out:**
+
+  * https://www.flutterbys.com.au/stats/tut/tut7.5a.html
+  * https://www.rpubs.com/cwoods/ancova
+  * https://rcompanion.org/rcompanion/e_04.html
+
+# Goals
+  * Become familiar with general linear models that have both **continuous and categorical explanatory variables**
+  * Simplest of these types of models is an **ANCOVA**
+  * See Logan Ch. 15
+
+#### Load libraries
+```{r}
+library("readr")
+library('car') # quick plot of multiple slope lines
+library('gmodels') #contrasts
+library('effects') # calculating adjusted means
+library('rockchalk') # quick plot of multiple slope lines
+library("readxl")
+
+```
+
+# read in data 
+```{r}
+limpet.dat <- read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/limpet.xlsx')
+head(limpet.dat)
+str(limpet.dat)
+
+```
+
+# Analysis of covariance (ANCOVA)
+  * Combines features of both ANOVA and Regression -- Essentially an ANOVA model 
+    that incorporates one continuous variable (covariates)
+  * When designing an experiment that examines differences in a response variable
+  between treatments (e.g. categorical explanatory variable) a covariate(s) is often
+  incorporated to reduce the amount of unexplained variability in the model and
+  increase power of any treatment effect. However, covariates can also be of substantial
+  biological interest.
+  * ANCOVA examines if there is a significant relationship between RV (quantitative)
+  and EV (categorical) while controlling for a covariate (quantitative)
+  * ANCOVA reduces the amount of unexplained variability in the model by
+examining differences between the levels of the explanatory variable, adjusted for
+the effect of the covariate
+
+**Two sets of Hypotheses:**
+
+  1) **Main Treatment Effect** – examines differences in the **intercept** between
+    the groups
+    * HA: There is a difference in the adjusted population means
+    * Ho: No difference in the adjusted population means; The mean of population 1
+    adjusted for the covariate equals mean of population 2
+
+  2) **Covariate Effect** – examines differences in the **slopes** of the lines between
+  groups o ANCOVA assumes that the slopes of the lines are parallel
+    * HA: slopes of the lines for each population do not equal zero (right panel
+below)
+    * Ho: slope of the lines for each populations equals zero (left panel below)
+    * If the regression lines have **different slopes (i.e., a significant interaction)**
+    it means that the effect of the continuous covariate on the response depends on the level
+    of the categorical variable. In other words, the regression lines have different slopes. 
+    * A significant treatment effect with no significant interaction shows that the covariate
+    has the same effect for all levels of the categorical variable. However, since the
+    treatment effect is important, the regression lines although parallel have different
+    intercepts. Finally, if the treatment effect is not significant nor its interaction
+    with the covariate (but the covariate is significant), this means there is a single
+    regression line.
+    * **If the interaction is not significant**, then it should be removed from the
+    model for final analysis of parameter estimates and adjusted means
+    * **If the interaction is significant**, then you cannot discuss changes in the
+    RV with respect to the different levels of the EV without reference to different
+    values of the covariate.
+    + Use similar strategy as multiple regression and examine slope of the line for
+    individual EVs at specific values of the covariate
+    + Use treatment contrasts to split up the interaction term into its constituent
+    contrasts for each level of the treatment (i.e., compare slope of each level of
+    the EV to the slope of a baseline level) – used when interested in the relationship
+    between RV and covariate
+    + We'll review interactions again in another worksheet
+  
+## Assumptions
+Same as for regression and ANOVA analysis
+
+## Model Setup
+  * lm(RV~CV+EV+CV*EV)
+    + **Covariate** goes first, followed by **EV** and then the **interaction**
+    + Adjusted population means should be calculated when examining differences 
+    in RV between levels of the EV (i.e., mean of population 1 adjusted for the covariate)
+
+# Example 1 (interaction not significant)
+Quinn (1988) examined the effects of season (spring vs summer) on the production 
+of egg masses produced by intertidal pulmonate limpets (*Siphonaria diemenensis*)
+while controlling for adult density per enclosure (experimental manipulation of density).
+  * RV = egg production (EGGS; numerical)
+  * EV = season (SEASON; categorical)
+  * CV = adult density (DENSITY; numerical)
+  
+  
+### Plot data
+Check for linearity of eggs by density for each season and if there is indication 
+of an interaction (will assess formally with results of the model)
+```{r}
+
+limpet.dat$SEASON <- factor(limpet.dat$SEASON) # make season a factor
+
+culr <- c("black", "red")  # assigning colors to SEASON levels
+
+plot(EGGS ~ DENSITY, data = limpet.dat,
+     las = 1,
+     xlim = c(5, 50),
+     xlab = "Adult Density",
+     ylim = c(0, 3),
+     ylab = "Eggs Produced",
+     pch = 21,
+     bg = culr[limpet.dat$SEASON])  # now inside the plot() call
+
+```
+
+
+ 
+
+### Specify the model and check residuals
+
+
+```{r}
+limpet.model <- lm(EGGS ~ DENSITY + SEASON + DENSITY*SEASON, data = limpet.dat)
+par(mfrow=c(2,2)) # set graph window
+plot(limpet.model,las=1)
+par(mfrow=c(1,1)) # reset
+
+```
+
+### Summary of results
+  There are TWO functions that you can use to view results - Either view in linear 
+  model format or in ANOVA format, BUT there are caveats:
+  
+  * If you view the ANOVA table output, use the function **Anova** from the car package,
+  and specify Type 3 errors (see example below)
+
+  * For the linear model format, use the function **summary** or **summary.lm** if you
+  originally fit your model using the function **lm**; If you fit your model using the
+  function **aov**, then use the function **summary.lm** and NOT just **summary**. Note
+  that I fit the model using **lm** 
+
+  Conclusion (so far): There is no evidence of an interaction between the effects of 
+  density and season on egg mass (F~(1,20)~ = 0.711, p-value = 0.793).
+  
+
+
+```{r}
+Anova(limpet.model, type="III") #CORRECT anova output with type III error specified
+anova(limpet.model) #INCORRECT anova output
+summary.lm(limpet.model) #CORRECT lm output because I specified lm here
+summary(limpet.model) #CORRECT lm output because I fit the model using the lm function (above)
+
+```
+
+### Interaction is not significant, so re-write the model to exclude it
+  Compare the different outputs below.
+
+```{r}
+limpet.Fmodel <- lm(EGGS ~ DENSITY + SEASON, data = limpet.dat)
+Anova(limpet.Fmodel, type="III") #CORRECT anova output with type III error specified
+summary(limpet.Fmodel) # CORRECT
+summary.lm(limpet.Fmodel) #CORRECT
+anova(limpet.Fmodel) # INCORRECT (compare with the previous 3 tables)
+```
+### Calculate adjusted means of season (e.g. mean of season taking into account density)
+  From the output above, we can see that both density and season affect egg mass. However, 
+  before making our biological interpretation, let's use adjusted means to calculate 
+  the mean egg mass per season taking density into account. Use function **Effect** with the model.
+  Argument includes name of the categorical EV in "" followed by model name. We would 
+  need to do this if the interaction was significant. Because the interaction is not 
+  significant we don't REALLY need to calculate adjusted means here, but let's do it
+  anyway since it won't affect the results (comparison with unadjusted means made below).
+
+```{r}
+adjustedMeans <- Effect("SEASON", limpet.Fmodel)
+summary(adjustedMeans) #means and 95% CIs
+adjustedMeans$se #standard errors
+
+#For comparison - look at the unadjusted mean values</span>
+
+tapply(limpet.dat$EGGS, list(limpet.dat$SEASON), 
+          function(x) c(M=mean(x), SE = sqrt(var(x)/length(x))))
+```
+
+#The covariate, density, was significantly inversely related to the egg mass
+  (F~(1,21)~=31.595, p<0.0001). For each 1 unit increase in density, egg mass 
+  decreased by.03209 units (t= -5.621, p-value= 1.41e-05). There was also a 
+  significant effect of season on egg mass after controlling for the effect of 
+  density (F~(1,21)~=20.439, p=0.000187), with summer egg masses being smaller 
+  than spring egg masses. The adjusted mean egg masses for each season were
+  1.83975 (95%CIs: 1.6003553-2.079145) for spring and 1.10375 (95%CIs:0.8643553-1.343145)
+  summer.
+
+## Make Scatterplot with predicted regression lines
+  Scatterplot of Eggs by Density with different colors for each season. 
+  Make a vector to distinguish eggs produces between seasons.
+```{r}
+culr <- c("black", "blue")  # colors for SEASON levels
+
+plot(EGGS ~ DENSITY, data = limpet.dat,
+     las = 1,
+     xlim = c(5, 50),
+     xlab = "Density",
+     ylim = c(0, 3),
+     ylab = "Eggs Produced",
+     pch = 21,
+     bg = culr[limpet.dat$SEASON])  # fill color by season
+
+```
+
+  
+```{r}
+# Subset data by season
+spring <- subset(limpet, SEASON == "spring")
+summer <- subset(limpet, SEASON == "summer")
+
+
+# explore trends for each season separetely
+lm.spring <- lm(EGGS ~ DENSITY, data = spring)
+lm.summer <- lm(EGGS ~ DENSITY, data = summer)
+```
+
+# Add predicted lines to plot for spring and summer
+# input values for x and y -axes
+## x-axis = values for density for a particular season (e.g. spring)
+## y-axis = predicted values for egg production based on linear model 
+### for a particular season (e.g. lm.spring)
+
+```{r}
+plot(EGGS ~ DENSITY, data = limpet,
+     las = 1,
+     xlim = c(5, 50),
+     xlab = "Density",
+     ylim = c(0, 3),
+     ylab = "Eggs Produced",
+     pch = 21,
+     bg = culr[limpet$SEASON])  # fill color by season
+
+lines(limpet$DENSITY[limpet$SEASON == "spring"], predict(lm.spring),
+      lty = 1, lwd = 2, col = "black") # line type, width, color
+lines(limpet$DENSITY[limpet$SEASON == "summer"], predict(lm.summer),
+      lty = 1, lwd = 2, col = "blue") # line type, width, color
+
+# add legend
+legend("topright", # location of legend - keyword or x,y coordinates)
+       legend = c("Spring", "Summer"), # names of objects in legend
+       pch = 19, col = c("black", "blue"), # symbol type and color of symbols
+       bty="n", # bty = n = no box around legend
+       cex=1, text.col= "black")

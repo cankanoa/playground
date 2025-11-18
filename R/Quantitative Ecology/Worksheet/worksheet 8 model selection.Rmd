@@ -1,0 +1,281 @@
+---
+title: "Worksheet 8 model selection"
+author: "Natalie Graham"
+date: "2025-08-01"
+output: pdf_document
+---
+
+Worksheet 8
+Quantitative Ecology
+
+Model selection:
+Up to this point, r2 (or the amount of variability in y that is explained by its relationship with x) has been the primary way that we have assessed the fit of a model. One problem with r2 is that it will always increase as you add predictors to a model, regardless of whether those predictors are “significant”. There are several common ways to assess the fit of a model that incorporate sample size and penalize for the number of parameters (predictors). These include adjusted r2, Mallow’s Cp, Akaike’s Information Criterion (AIC and AICc), and Bayesian Information Criterion (BIC). For now, we will focus on AIC and AICc as these have become the most widely used (by far) in the ecology literature.  
+
+
+### Information-Theoretic Methods (Model Selection)
+
+  1) First step: Comparison of a set of candidate models (i.e., alternative hypotheses) chosen a priori for their biological significance
+  2) Next: Assessment of the strength of evidence for each of the alternative models, and
+  3) Finally: Interpretation of the results in face of model selection uncertainty 
+  
+  * Compare all models to each other simultaneously – all models must have same RV and use same dataset
+  * What is the empirical evidence to support a hypothesis relative to the other?
+  * Uses likelihood
+  
+
+#### Kullback-Leibler (KL) Information 
+
+  * KL states I(f,g) is the information lost when model g is used to approximate truth f
+  * The best model loses the least information relative to other models in the set
+
+##Akaike’s Information Criterion (AIC)
+  * Akaike found a formal relationship between Kullback-Leibler information and maximum likelihood
+AIC = -2log (L) + 2k
+  * Where -2log (L) or -2 log-likelihood is deviance or lack of fit and k is the number of parameters in the model (penalty factor)
+  * likelihood is the probability of observed data – the larger the values the higher probability that the parameters explain the data. Therefore, the negative of the likelihood is the deviance or lack of fit of the observed data
+  * Smaller values represent overall better fit
+    + log-likelihood typically decreases as more parameters are added (e.g. typically explain more variation in data with more parameters), but you are penalized for adding new parameters – Enforces parsimony (simple models are best!)
+  * Sometimes recommended that always use AICc (AIC corrected for small samples sizes) because as sample size increases, the correction term in AICc vanishes and AICc matches AIC. Not everyone agrees with this. 
+  * There is also another information criterion that we will use, QAIC (and QAICc). This stands for “quasi-AIC” and is used instead of AIC when data/models show overdispersion. Overdispersion is common with count and percentage data.
+  * we will test whether to use AIC or QAIC, and whether to correct for small sample sizes.
+
+#### Important Calculations
+Rank the models: Δi  = AICci - AICcmin (note that I have used AICc in this example, but models are ranked by whichever information criterion you use, and the “cutoffs” described below remain the same):
+
+  * AICcmin – denotes the minimum of the AICc values for a set of models 
+  * Δ values are on a continuous scale of information and are interpretable regardless of the measurement of scale and whether data are continuous, discrete, or categorical.
+  * General rules of thumb
+    + AICcmin is the model best fit to the data
+    + Models within 2 AICcmin are more or less equivalent and considered top competing models
+    + Models within 2 to 7 of AICcmin have some support and use measures below to determine if should be included in model averaging
+    + Models > 10 AICcmin of have no empirical support
+
+
+**Akaike weights/weight of evidence:** 
+
+  * wi = Prob {model gi|data} = l i / ∑ l j
+  * Probability of each model gi given the data and set of models
+  * Example – probability of H4 is 0.78, while the probability of H2 is 0.015 – suggesting that the data support H4
+
+**Evidence Ratio:** 
+
+  * ratio of either the model likelihoods or model probabilities for any two models
+  * Example – evidence ratio for H4 vs H2 is 0.78/0.015
+  * Empirical support for H4 is 52 times that of H2
+
+  ** Model Averaging
+
+  * Often model selection results in uncertainty whereby no one model can be considered the “best model”
+    + For example: If Prob (g3|data) =0.99 then there is not much doubt that model g3 is the best model, given the data, and you would just report parameter estimates from that model.  However, if Prob (g3|data) = 0.43 then there is considerable uncertainty in the selection of the best model (i.e. if one replicated the data from the same system, it may well be that another model would be estimated as best)
+  * Model averaging takes the average of the predictions of different models, weighted by the probability of the models (e.g. AIC weights)
+
+
+**Relative Importance of each variable (EVs)**
+
+  * Examines relative importance of variables in the top models
+  * Calculate by summing Akaike weights across all models in the top models where the variable occurs
+    + Variables with strong support have cumulative Akaike weights near 1
+
+**Unconditional estimates of precision**
+
+  * Averaging model parameters incorporating model selection uncertainty based on the “top competing” models
+  * Assessing the SE or CI of parameters allows you to understand the biological relevance of the parameters included in the top models (e.g. your confidence in these parameters in prediction your RV)
+Important Notes about AIC model selection
+
+  * AICc ranks the models in the set of alternatives; if none have merit, the models are still ranked. 
+    + Need to measure of the “worth” of either the global model or the model estimated to be best (e.g. goodness-of-fit tests, and the analysis of regression residuals)
+  * Avoid mixing model selection and p-values
+  * Word “significant” should be avoided when discussing results of model selection terms to avoid confusing with frequentist statistics
+
+**************************
+Below are some ways to use AIC for model selection in R. 
+
+Load libraries
+```{r}
+library(readr)
+library(MASS)
+library(MuMIn)
+```
+
+Read in data
+```{r}
+dodson <- readxl::read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/dodson.xlsx')
+names(dodson)
+```
+Specify a “full” or “global” model, followed by various reduced models (here I'm choosing 6 models total):
+> model1<-lm(Fish~Area+PPR+Cladoc+Area:PPR)
+> model2<-lm(Fish~Area+PPR+Cladoc)
+> model3<-lm(Fish~Area+PPR)
+> model4<-lm(Fish~Area)
+> model5<-lm(Fish~PPR)
+> model6<-lm(Fish~Cladoc)
+
+```{r}
+ model1<-lm(Fish~Area+PPR+Cladoc+Area:PPR, data = dodson)
+ model2<-lm(Fish~Area+PPR+Cladoc, data = dodson)
+ model3<-lm(Fish~Area+PPR, data = dodson)
+ model4<-lm(Fish~Area, data = dodson)
+ model5<-lm(Fish~PPR, data = dodson)
+ model6<-lm(Fish~Cladoc, data = dodson)
+```
+ 
+Evaluate the models via AIC
+```{r}
+
+
+ AIC(model1)
+# spot check: [1] 288.9359
+
+ AIC(model2)
+#[1] 287.1318
+
+ AIC(model1,model2,model3,model4,model5,model6)
+
+
+```
+The stepAIC() function from library(MASS) can be a useful and quick way to look for best-fitting models. Sometimes, it may even pick up a model that is better than one you specified by hand. (The downside is that if sometimes misses the best model). Note that it calculates AIC slightly differently, so models cannot be directly compared between these 2 methods. 
+
+```{r}
+stepAIC(model1) # use full model
+
+```
+ 
+
+So- stepAIC found a model better than the 6 that were specified earlier. Now you can run AIC to compare to the others:
+```{r}
+model7<-lm(Fish~Area+Cladoc, data = dodson)
+AIC(model7)
+```
+
+
+yep- this last one was best… (lowest AIC)
+
+***********************
+
+Package MuMIn
+This package contains functions for automated model selection and model averaging based on AIC. It has a number of different functions, including:
+
+dredge()  	this runs all combinations of models using terms supplied by the “global model”
+
+model.avg()	this does model averaging on the models specified by the two functions above.
+
+Model weights and model averaging: When differences (ΔAIC or AICc) are within 2-3 units (sometimes up to 6-7 units) then that means that those models are plausible too, so in order to get an estimate of the effect of the variables included within all plausible models you can examine the model weights and do model averaging. 
+
+The weights are calculated using the differences in the AIC score and the value of the parameter estimate, but the weight is also affected by the number of models you have in a set. Since the weights must add to 1, as you add more models some of that weight is “claimed”. So if you have a lot of models in your set the top model might have a lower weight than if there were fewer models considered, but it’s the combined evidence of difference in score, AIC weight and CI that is used to determine if competing models are also plausible.
+
+The weights are also useful in model averaging for adjusting the relative contribution of model parameters.
+
+If the models within several deltas are weighted equally then there may be additional explanatory power in the predictor variables in the lower ranked models (variables that were not included in the best model by AICc). By this same logic, there would be less support for variables in a model that is within a few deltas but has very little weight. Model averaging weights the variables in the model by the AIC weight and adjusts the estimate (ie. slope) accordingly. Note- model averaging focuses only on the best supported models. This means that some factors in the global model will not be included in the model averaging calculations.
+
+Now, looking at the SE or 95% CI for the variables, you can then evaluate how much confidence you have in whether a predictor variable should be included in the model (a way of assessing its “significance”). If the CI around your estimate includes zero, you should be careful about making a conclusive statement regarding the impact of the predictor (careful about including that variable in the best model). There may be at least 2 possible interpretations: 1) the predictor variable is co-linear or even confounded with the real variable; 2) the strength of the effect of that variable might be real and you need a larger sample size to cut through the noise of other confounding variables. 
+
+```{r}
+names(dodson)
+```
+
+Try transforming the data
+
+```{r} 
+hist(dodson$Fish)
+logfish<-log10(dodson$Fish+0.1)
+logfish
+hist(logfish)
+```
+
+Make a new model and include na.fail
+Setting na.action="na.fail" in your models ensures that any dataset with missing values will cause the model to fail rather than handle the missing data in a way that could lead to different datasets being fitted differently. This is particularly important when performing model selection or dredging, as it maintains consistency and integrity in your analysis.
+
+The dredge function is used to perform automated model selection by running all possible combinations of predictor variables from a global model. 
+```{r}
+m1<-lm(logfish~Area+PPR+Cladoc+Area:PPR, dodson, na.action="na.fail")
+#note- na.action=”na.fail” is added to models to prevent fitting different models to different datasets. This is often added to models that will be dredged. 
+dredge(m1)
+```
+
+Model selection table with columns indicating:
+
+Coefficients: Intercept, Area, Cladoc, PPR, Area:PPR.
+df: Degrees of freedom for each model.
+logLik: Log-likelihood of the models.
+AICc: Corrected Akaike Information Criterion.
+delta: Difference in AICc between the current model and the best model.
+weight: Model weights (probability that each model is the best model given the data).
+
+Assign the dredge object and inspect based on various criteria
+```{r}
+foo1<-dredge(m1)
+# Print the whole dredge object
+foo1
+
+# View summary
+summary(foo1)
+
+# View top 5 models
+head(foo1, 5)
+
+# Access the best model
+best_model <- foo1[1]
+best_model
+
+# Extract and inspect a subset of models
+top_models <- subset(foo1, delta <= 4)
+top_models
+
+
+```
+Next use the model average function for all the models
+
+```{r}
+Mafoo<-model.avg(foo1, subset=TRUE)
+
+# you can see the change in the coeffiencient for the full vs the averaged models (not much change except PPR anf Area:PPR)
+Mafoo
+
+# the row names for the component models is the predictor variables included in each model. E.g. the first model includes Cladocerans only the next best model has Cladocerans and PPR ...etc check the term codes
+summary(Mafoo)
+```
+These component models were averaged to provide a comprehensive analysis considering all possible combinations of the predictor variables from your global model. This approach helps in identifying the most influential variables and their interactions.
+
+# check the relative variable importance which represents the sum of the weights for all models that contain that variable 
+Interpretation: Cladoc appears in 5 models and is considered a very important predictor given the total weight of 1.00. However, PPR appears in 6 models and has only a moderate importance with a weight of 0.33.
+```{r}
+sw(Mafoo)
+```
+# can calculate the confidence intervals
+```{r}
+
+confint(Mafoo)
+
+```
+                    		
+Here, the model that contained just Cladocerans received the most support. **The CI’s for the other variables included 0, and their weights are much less, so they likely should not be included in the best model for explaining logfish abundance.**
+
+How to display results? See the following link for one example from a bird journal- “The Auk”:
+https://academic.oup.com/view-large/125971228
+
+Let's say you have more than one model with equal strength and different significant predictors - you can do model averaging to get one averaged model. When to use:
+
+Model Uncertainty: When there is not a clear best model (i.e., several models have similarly low AICc values), averaging allows you to incorporate model uncertainty into your parameter estimates.
+
+Wide Range of Important Predictors: If different models highlight different predictor variables as important, averaging can provide a more comprehensive understanding.
+
+```{r}
+
+# Different ways of finding a confidence set of models:
+# delta(AIC) cutoff
+subset(foo1, delta <= 4, recalc.weights = FALSE)
+# cumulative sum of Akaike weights
+subset(foo1, cumsum(weight) <= .95, recalc.weights = FALSE)
+# relative likelihood
+subset(foo1, (weight / weight[1]) > (1/8), recalc.weights = FALSE)
+
+# Lets use Delta for our final model averaging
+# Perform model averaging on the subset
+topavg <- model.avg(foo1, subset = delta <= 4, recalc.weights = FALSE)
+
+topavg
+summary(topavg)
+plot(topavg)
+```
+
+

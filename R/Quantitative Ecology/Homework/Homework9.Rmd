@@ -1,0 +1,113 @@
+---
+title: "Homework9"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+Biologists were interested in understanding how the density of vegetation and height from the forest floor explain the number (count) of spiders found within 5 m radius plots in a Hawaiian wet forest. Height was measured as a categorical variable here. (see spiders dataset)
+
+Import data
+
+```{r}
+library(MASS)
+library(car)
+library(MuMIn)
+
+ds <- readxl::read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/spiders.xlsx')
+
+# independent
+vegdens <- ds$vegdens
+height <- factor(ds$height)
+
+# dependent
+spiders <- ds$spiders
+
+```
+
+a) run the full model (with interaction) and check for overdispersion 
+
+```{r}
+# Initial model
+model.test <- glm(spiders ~ vegdens + height + vegdens*height, family = "poisson")
+
+# Outcome is a count
+#Pass, spiders is count data
+
+# Independence of observations
+# Pass, assumed to be true
+
+# Mean equals variance (equidispersion)
+sum(resid(model.test, type = "pearson")^2)/model.test$df.resid
+model.test$deviance/model.test$df.resid
+# Fail, value is above 1. Do negative binomial instead.
+
+# Log of the mean is a linear function of predictors
+# Skip to negative binomial
+
+# Dispersion parameter
+# Skip to negative binomial
+
+# Zero-inflation or truncated
+# Skip to negative binomial
+```
+
+b) if over-dispersed, use the negative binomial model to account for over-dispersion 
+
+```{r}
+# Initial model
+model.nb <- glm.nb(spiders ~ vegdens + height + vegdens*height)
+
+# Count response (non-negative integers)
+# Pass
+
+# Independence of observations
+# Pass, assumed
+
+# Overdispersion present
+mean(ds$spiders)
+var(ds$spiders)
+# True, var is greater than mean
+
+# Log link is appropriate
+plot(fitted(model.nb), resid(model.nb, type = "pearson"),
+     xlab = "Fitted values", ylab = "Pearson residuals")
+abline(h = 0, col = "red")
+# Pass, no curve or trend
+
+# No severe multicollinearity among predictors
+vif(model.nb)
+# Pass, values close to or under 5
+
+# Zero-inflation or truncated
+obs_zeros <- sum(spiders == 0)
+
+pred <- predict(model.nb, type = "response")
+exp_zeros <- sum(dnbinom(0, mu = pred, size = model.nb$theta))
+
+obs_zeros
+exp_zeros
+# Pass, observed and predicted are close
+
+```
+
+c) use model selection in package MuMIn to select best model. Be sure to assess importance values and report confidence intervals for the coefficients used in your final model
+
+```{r}
+# Full model
+model.nb.full <- glm.nb(spiders ~ vegdens + height + vegdens*height, na.action = "na.fail")
+
+# Dredge
+model.set <- dredge(model.nb.full)
+summary(model.set)
+model.set
+# Three models should be averaged
+
+# Select models
+model.avg.out <- model.avg(model.set, subset = delta < 2)
+summary(model.avg.out)
+```
+
+Spider abundance varies significantly with height above the forest floor, with more spiders found in the Low and Mid height strata compared to the reference height. Vegetation density on its own does not strongly influence spider counts. 
+
+

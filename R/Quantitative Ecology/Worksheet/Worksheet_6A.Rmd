@@ -1,0 +1,75 @@
+---
+title: "Worksheet_6A"
+author: "NRG"
+date: "2025-10-01"
+output: html_document
+---
+
+ Two-way ANOVA (Multiple-factor ANOVA; Factorial ANOVA)
+#Factorial designs are an extension of a one-way ANOVA designs in which additional factors are added such that each level of one factor is applied to all levels of the other factors(s) and all combinations are replicated. 
+* Fixed factor: factors whose levels represent the specific population of interest. For example, a factor that comprises “high”, “medium”, and “low” temperature is a fixed factor – we are only interested in comparing those three populations.
+* Random factor: factors whose levels are randomly chosen from all the possible levels of populations and are used as random representative of the populations. Random factors include sites and subjects – factors for which we are attempting to generalize over. We'll go over random factors more later in the semester.
+* Not all models will have both fixed and random factors
+    + Model I ANOVA: all factors are fixed
+    + Model II ANOVA: all factors are random
+    + Model III ANOVA: mixture of fixed and random factors; useful for investigating the generality of main treatment effect (fixed) over broad spatial, temporal, or biological levels of organization. 
+    
+* Multiple Hypotheses (main effects and interaction between main effects)
+Null Hypothesis 1- there is no main effect of factor 1
+Null Hypothesis 2- there is no main effect of factor 2
+Null Hypothesis 3- there is no interaction between factors 1 and 2
+-An interaction is where the effect of one factor on the response varies with levels of the other factor. 
+-If the interaction term is significant then you should generally not discuss the main effects individually, but you can only discuss them relative to one another. An interaction plot is useful in understanding an interaction among main effects
+* Assumptions: Same as one-way ANOVA
+* How many null hypotheses are being tested in Model I, II, and III?
+    + 3 null hypotheses each. **Read Logan pg. 315 – 317.** 
+
+
+## EXAMPLE 1: Two-way ANOVA with only fixed factors (no random factors) and test for interaction
+#Data: Exploring influence of large-scale weather patterns, ENSO, on habitat of migratory birds wintering in South America - measured via the Normalized Difference Vegetation Index (NDVI). This index basically quantifies amount of live green vegetation from remote sensing measurements.
+* RV: ndvi (continuous)
+* EVs: 
+enso.cat (categorical; fixed) - nino= El Nino year, nina= El Nina year, non= neutral year
+    	species (categorical; fixed) - 3 species GCTH, REVI, SWTH (note that given the question posed above, species would be better as a random factor since we don't expect species to affect the NDVI. For now we will treat it as a fixed factor just to work through the example)
+(Note: we will explore models with fixed and random effects in more detail in future classes)
+
+First- import ndvi.sa dataset into R studio
+#### Load libraries
+```{r}
+
+library("readxl")
+library('car') # quick plot of multiple slope lines
+library('gmodels') #contrasts
+library('effects') # calculating adjusted means
+library('rockchalk') # quick plot of multiple slope lines
+
+```
+
+# read in data 
+```{r}
+ndvi_sa <- read_excel("C:/Users/Natal/Dropbox/Teaching/Quantative Ecology 2024 -GRAHAM/datasets/ndvi.sa.xlsx")
+head(ndvi_sa)
+str(ndvi_sa)
+
+
+```
+
+
+#check model assumptions with histogram, boxplot, and Shapiro-Wilk test
+```{r}
+boxplot(ndvi_sa$ndvi~ndvi_sa$`enso cat`,las=1)
+boxplot(ndvi_sa$ndvi~ndvi_sa$`enso cat`,las=1)
+```
+
+```{r}
+nd2<-aov(ndvi_sa$ndvi~ndvi_sa$`enso cat`+ndvi_sa$species+ndvi_sa$`enso cat`*ndvi_sa$species)
+anova(nd2)
+```
+
+
+#Interaction plots are a great way to display 2-Way Anova’s
+
+```{r}
+interaction.plot(ndvi_sa$'enso cat',trace.factor= ndvi_sa$'species', response= ndvi_sa$ndvi, fun=mean, type = "b")
+```
+

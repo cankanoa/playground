@@ -1,0 +1,323 @@
+---
+title: "Worksheet 5a"
+author: "Natalie Graham"
+date: "2025-08_01"
+output: pdf_document
+---
+
+#Worksheet 5
+#CBES 677 Quantitative Ecology
+
+#Today, we will practice basic functions (including diagnostics, plotting, and hypothesis testing) for running simple linear regressions and correlations 
+
+Load libraries
+```{r}
+library(readxl)
+library(readr)
+library(car)
+```
+
+Read in data
+```{r}
+LeBoeuf <- read_excel("/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/LeBoeuf.xlsx")
+crabs <- read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/crabs.xlsx') #use the readr package to read in csv
+```
+# Simple regression
+LeBouef et al. carried out a study of the relationship between weight at departure and distance traveled for marine mammals. Import the LeBoeuf dataset and assign it. Note the type of variables and their names.
+```{r}
+
+LeBoeuf
+
+str(LeBoeuf)
+```
+
+We can use the library(car) to get some extra plotting functions - for example cool scatterplot outputs: 
+
+- the scatterplot() function gives boxplots and LOESS smoothers, in addition to 
+- the basic scatter of dots. This helps with diagnostics, as will be discussed in class:
+
+Recall: (RV~EV, data)
+```{r}
+scatterplot(Distance~Departwt,LeBoeuf)
+```
+If you type ?scatterplot you can see the presets for this function. The presets are a default set of specifications for the scatterplot graph. They can be modified or dropped by adding an argument to the scatterplot function. Can you make a 
+scatterplot without the LOESS residual smoothers? Now try to drop the LOESS regression smoother as well as the regression line. Also- try to make the circle characters bigger, and change their color and shape
+
+```{r}
+?scatterplot
+
+# here's one example
+scatterplot(Distance~Departwt, data = LeBoeuf, smooth = FALSE, regLine = FALSE,
+            pch = 17, col = "blue", cex = 1.5)
+```
+
+Now try to go back to the original default graph!
+  
+scatterplot(Distance~Departwt,LeBoeuf, smooth=F)
+scatterplot(Distance~Departwt,LeBoeuf, smooth=F, regLine=F)
+scatterplot(Distance~Departwt,LeBoeuf, smooth=F, regLine=F,boxplots =F)
+scatterplot(Distance~Departwt,LeBoeuf, smooth=F, regLine=F,boxplots =F,cex=2)
+scatterplot(Distance~Departwt,LeBoeuf, smooth=F, regLine=F,boxplots =F,cex=2)
+scatterplot(Distance~Departwt,LeBoeuf, smooth=F, regLine=F,boxplots =F,cex=2, col="red")
+
+The plot function gives a more basic scatterplot:
+```{r}
+plot(Distance~Departwt,LeBoeuf)
+```
+
+We can add in a plot title, modify the x and y axis labels, as well as modify the size and color of the points as below:
+
+```{r}
+plot(Distance~Departwt,LeBoeuf, main="Marine Mammal Migration", xlab="Distance Traveled",ylab="Departure Weight", col="blue", cex=.5)
+```
+# And in ggplot
+```{r}
+# Scatterplot with modified point size, color, and shape
+ggplot(LeBoeuf, aes(x = Departwt, y = Distance)) +
+  geom_point(size = 4, color = "blue", shape = 17) +
+  geom_smooth(method = "loess", se = TRUE) +
+  theme_minimal()
+
+```
+The geom_point() function is used to create the scatterplot with modified point size, color, and shape.
+The geom_smooth(method = "loess", se = TRUE) function adds the LOESS residual smoother to the plot.
+
+# The lm() function:
+  
+The lm() function means "linear model", and is written with the response variable first, followed by a ~, then the predictor. This can be read as “y is modeled as a function of x”.
+
+Assign a name for a new object that represents the linear model of the 2 variables Departwt and Distance:
+
+```{r}
+leboeuf.lm<-lm(Distance~Departwt, LeBoeuf)
+
+```
+
+Note that you are not required to use the data= argument when specifying which dataset you are running the model on. . . It can help keep things straight though! e.g. leboeuf.lm<-lm(Distance~Departwt, data = LeBoeuf)
+
+The plot() command on the assigned model object will give us a series of lovely diagnostic graphs. Note that this output is different than when using the plot() function on a y~x relationship as shown earlier (why??)
+
+```{r}
+plot(leboeuf.lm)
+```
+These plots help diagnose potential issues with your linear model, ensuring that the assumptions of linear regression are met. If you notice any deviations or patterns, you may need to consider transforming your data or using a different modeling approach.
+
+1. Residuals vs. Fitted
+To check for non-linearity and unequal error variances. If the red line is roughly horizontal, it suggests that the relationship is linear. If the points are randomly scattered around the horizontal line, it indicates homoscedasticity (constant variance of residuals). Patterns or trends in the plot suggest non-linearity or heteroscedasticity.
+2. Normal Q-Q Plot
+To check if the residuals are normally distributed. If the points fall along the diagonal line, it suggests that the residuals are normally distributed. Deviations from the line, especially at the tails, indicate departures from normality.
+3. Scale-Location Plot (Spread-Location Plot)
+To check for homoscedasticity (constant variance of residuals). If the red line is roughly horizontal and the points are evenly spread, it suggests homoscedasticity. A funnel shape (widening or narrowing) indicates heteroscedasticity.
+4. Residuals vs. Leverage
+To identify influential observations. Points outside the dashed lines (Cook’s distance) are considered influential. Influential points can have a significant impact on the regression model and may need further investigation.
+
+# Influence measures
+The influence.measures() function in R provides a comprehensive set of diagnostics to identify influential data points in your regression model. The key measures it reports:
+
+DFBETAS: Measures the change in each coefficient when a particular observation is removed. Large values indicate that the observation has a significant influence on the estimated coefficient.
+DFFITS: Measures the change in the fitted values when a particular observation is removed. Large values suggest that the observation has a significant influence on the fitted values.
+Covariance Ratios: Measures the change in the determinant of the covariance matrix of the estimates when a particular observation is removed. Values far from 1 indicate influential observations.
+Cook’s Distances: Combines information on the residual and leverage to measure the influence of each observation on the fitted values. Large values indicate influential observations.
+Hat Matrix Diagonal Elements (Hat Values): Measures the leverage of each observation. High leverage points can have a significant impact on the regression model.
+
+In the output table, cases that are influential **with respect to any of these measures** are marked with an asterisk (*). This helps you quickly identify which observations might be having an undue influence on your model and may need further investigation.
+
+```{r}
+influence.measures(leboeuf.lm)
+
+```
+Cases which are influential with respect to any of these measures are marked with an asterisk.
+
+The influence.measures() function creates the table below (only showing first 3 rows):
+  
+    dfb.1_  dfb.Dstn    dffit   cov.r   cook.d     hat     inf
+1  -0.20563  0.18037 -0.20641   1.262   2.20e-02  0.1567   *    <-- Consider this observation to be a potential problem as far as leverage
+2   0.19645 -0.16856  0.19819   1.227   2.02e-02  0.1339    
+3  -0.03612  0.02911 -0.03733   1.197   7.25e-04  0.0945    
+   
+# Should we transform the data?
+
+It may or may not be useful to log transform the response. Even though the assumptions for the simple regression are generally met, we can try the log transformation for practice:
+
+```{r}
+# log transform
+LeBoeuf$log.Dist<-log10(LeBoeuf$Distance)
+leboeuf.log<-lm(log.Dist ~ Departwt, LeBoeuf)
+
+# plot log
+plot(leboeuf.log) # fit seems worse actually
+
+
+# inverse transform
+LeBoeuf$inv<-1 / (LeBoeuf$Distance)
+leboeuf.inv<-lm(inv ~ Departwt, LeBoeuf)
+
+# plot log
+plot(leboeuf.inv) # fit seems worse actually
+
+```
+No marked improvement from those transformation. Ordinary least squares is fairly robust to slight violations. Let's move on witht the untransformed data.
+
+# The summary() and anova() functions
+
+There are at least 2 ways (functions) to examine the output of any regression- summary () and anova () each says similar things in different ways:
+
+First, summary. This provides a test of the null hypothesis that the slope (the estimate for Distance on the table below) is not different from 0 and is reported as a T statistic with P value, as well as an F statistic with R2 values:
+
+```{r}
+summary(leboeuf.lm)
+```
+Use summary(lm) when you want to understand the significance and impact of each predictor variable in your model.
+
+**Summary(lm):**
+
+1. Call
+Ensure the formula correctly represents the relationship you intended to model.
+
+2. Residuals
+The distribution of residuals (differences between observed and predicted values).
+Min, 1Q, Median, 3Q, Max: These values should be symmetrically distributed around zero if the model is well-fitted.
+Median: Should be close to zero.
+
+3. Coefficients
+Shows the estimated effect of each predictor variable on the response variable. Indicates the average change in the response variable for a one-unit change in the predictor. In the context of linear regression, the t-test is used to determine whether each individual predictor variable (independent variable) has a statistically significant relationship with the response variable (dependent variable). 
+Estimate: The estimated coefficient for the predictor.
+Std. Error: The standard error of the coefficient.
+t value: The ratio of the estimate to its standard error. Higher absolute values indicate more significant predictors.
+Pr(>|t|): The p-value for the t-test. If this value is small, it indicates that the predictor is significantly contributing to the model.
+
+4. Residual Standard Error
+Measures the average amount that the observed values deviate from the fitted values. Smaller values indicate a better fit.
+
+5. Multiple R-squared and Adjusted R-squared
+Measures the proportion of variance in the response variable explained by the predictors.
+Multiple R-squared: Higher values indicate a better fit.
+Adjusted R-squared: Adjusts for the number of predictors in the model. Use this to compare models with different numbers of predictors.
+
+6. F-statistic and p-value
+Tests the overall significance of the model.
+F-statistic: Higher values indicate a better fit.
+p-value: Indicates whether the model is statistically significant. A small p-value (typically < 0.05) suggests that the model provides a better fit than a model with no predictors.
+
+# And now, anova(). This gives the ANOVA table with sums of squares, mean squares, F statistic, and P value.
+
+```{r}
+anova(leboeuf.lm)
+```
+**Analysis of Variance Table:**
+
+Use anova(lm) when you want to test the overall significance of the model or compare nested models (more on that later).
+
+1. Degrees of Freedom (Df)
+Indicates the number of independent values that can vary in the analysis.
+Distance: Degrees of freedom for the predictor variable (in this case, 1).
+Residuals: Degrees of freedom for the residuals (in this case, 25).
+
+2. Sum of Squares (Sum Sq)
+Measures the total variation in the response variable.
+Distance: Sum of squares due to the predictor variable 
+Residuals: Sum of squares due to the residuals
+
+3. Mean Squares (Mean Sq)
+Average variation per degree of freedom.
+Distance: Mean square for the predictor variable 
+Residuals: Mean square for the residuals 
+
+4. F Value
+Tests the overall significance of the predictor variable.
+F value: Ratio of the mean square for the predictor to the mean square for the residuals. Higher values indicate a more significant predictor.
+
+5. P Value (Pr(>F))
+Indicates the probability that the observed F value could occur by chance.
+A small p-value (typically < 0.05) suggests that the predictor variable is statistically significant 
+
+# Graphing the resuls for the model
+
+The best figure to illustrate this model would be a scatterplot with a regression line using the plot() then the abline() functions on the y~x relationship:
+
+```{r}
+# Plotting the data
+plot(Distance~Departwt, data = LeBoeuf)
+
+# Adding the regression line
+abline(lm(Distance~Departwt, data = LeBoeuf))
+```
+
+Now in ggplot
+```{r}
+# Scatterplot with regression line
+ggplot(LeBoeuf, aes(x = Departwt, y = Distance)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Scatterplot with Regression Line") +
+  theme_minimal()
+```
+
+# Conclusions
+```{r}
+# run our untransformed model again
+leboeuf.lm <-lm(Distance~Departwt, LeBoeuf)
+summary(leboeuf.lm)
+```
+
+Report the results of the model
+
+A linear regression model was fitted to predict the departure weight (Departwt) based on the distance traveled (Distance). The model was statistically significant, ( F(1, 25) = 78.28 ), ( p < 0.001 ), and explained approximately 75.8% of the variance in departure weight (( R^2 = 0.7579 ), adjusted ( R^2 = 0.7483 )).
+  
+To practice a bit more using the same functions as above, import the “peake” dataset. This looks at the relationship between area and abundance for intertidal mussels. Spend 10-15 minutes running through this on your own, and ask questions as you need. The regression model for this example is fairly straightforward, but it is also worth spending time learning some of the additional plotting functions in this example.
+
+Please go through the separate "Worksheet 5B" handout. You can also follow example 8D page 192 in Logan
+
+ 
+# Pearson's correlation:
+Correlation measures the strength and direction of the linear relationship between two variables.
+
+Difference btw correlation and regression:
+-  Correlation quantifies the strength and direction of a relationship, while regression models the relationship and makes predictions.
+- *Correlation does not imply causation*, whereas regression can be used to infer causal relationships if certain conditions are met.
+- Correlation is a single statistic, while regression provides an equation that describes the relationship.
+- Correlation is *symmetric*, meaning the correlation between ( X ) and ( Y ) is the same as the correlation between ( Y ) and ( X ).
+
+The correlation coefficient (often denoted as ( r )) ranges from -1 to 1.
+( r = 1 ): Perfect positive correlation
+( r = -1 ): Perfect negative correlation
+( r = 0 ): No linear correlation
+
+Following example 8A from Logan, Import the "crabs" dataset, which explores the correlation between gill weight and body weight of a species of crab.
+  
+```{r}
+# check out the variables
+crabs
+str(crabs)
+```
+
+Check assumptions of linearity and bivariate normality as below:
+```{r}
+
+scatterplot(gillwt ~ bodywt, data =crabs)
+
+```
+
+Even though the median is off-center for the boxplot on the x axis, it can be viewed as reasonably symmetrical because the box is centered between the max and min.
+
+# Now, run the correlation test:
+
+```{r}
+cor.test(~gillwt+bodywt, data = crabs)
+```
+This test returns a t statistic, df, and P value relating to the null hypothesis that the correlation is equal to 0. It also gives the correlation along with a 95% CI.
+
+# Report results
+A Pearson’s product-moment correlation was conducted to assess the relationship between gill weight (gillwt) and body weight (bodywt). There was a strong, positive correlation between the two variables, ( r = 0.865 ), ( t(10) = 5.454 ), ( p < 0.001 ). This indicates that as body weight increases, gill weight also tends to increase.
+
+The 95% confidence interval for the correlation coefficient was [0.578, 0.962], suggesting that the true correlation is likely to fall within this range.
+
+# Nonparametric equivalent
+If you are not convinced that the assumptions for the paramtric correlation test were met, you can run a non parametric version of this, known as the "Spearman's rank correlation" which produces a statistic known as "rho" 
+
+```{r, warning=FALSE}
+cor.test(~gillwt+bodywt,data = crabs, method="spearman")
+```
+A Spearman’s rank correlation was conducted to assess the relationship between gill weight (gillwt) and body weight (bodywt). There was a strong, positive correlation between the two variables, ( \rho = 0.895 ), ( S = 30.104 ), ( p < 0.001 ). This indicates that as body weight increases, gill weight also tends to increase.
+
+

@@ -1,0 +1,112 @@
+---
+title: "Homework10"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+```{r}
+library(lme4)
+library(emmeans)
+
+ds <- readxl::read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/ohiamixed.xlsx')
+ds <- ds[ds$species == "ohia", ]
+
+plot <- as.factor(ds$plot)
+species <- ds$species
+dbh2 <- as.numeric(ds$dbh2)
+comstat <- relevel(as.factor(ds$comstat), ref = "S")
+growth <- ds$`growth rate`
+
+```
+Create two linear models that examine factors associated with `ōhi`a growth. 
+
+Linear model with fixed effects only. For the first, run a linear model with "comstat" as the explanatory variable and "growth" as the response. Run this as a linear model (lm) using the *summary* function.
+
+Asumptions
+```{r}
+# Test model
+model_test <- lm(dbh2 ~ comstat)
+
+# Linearity – The relationship between predictors and the response variable is linear.
+plot(model_test, which = 1)
+# Pass, does not look skewed
+
+# Independence – Observations (and residuals) are independent of each other.
+# Pass, assumed to be good. 
+
+# Homoscedasticity – The variance of residuals is constant across all fitted values.
+plot(model_test, which = 3)
+# Pass, looks relatively flat
+
+# Normality of Errors – Residuals are approximately normally distributed.
+plot(model_test, which = 2)
+# Pass, relatively normal
+
+# No Multicollinearity – Predictor variables are not highly correlated with each other.
+# Pass, only one factor variable input so not required
+
+# No Significant Outliers or Influential Points – Extreme values do not unduly affect the model.
+plot(model_test, which = 5)
+# Pass, does not pass cooks distance
+```
+
+Model
+```{r}
+model1 <- lm(dbh2 ~ comstat)
+summary(model1)
+```
+
+Linear model with fixed and random effects. Because reviewers may wonder if the plot that the trees are growing in may have an effect on the growth of the trees, also make a linear mixed effects model as above but with plot as a random factor. Be sure to examine the assumption of normality of the response and log transform if necessary (for both models).
+
+```{r}
+model_test1 <- lmer(dbh2 ~ comstat + (1 | plot))
+
+# Homoscedasticity – The variance of residuals is constant across all fitted values.
+plot(fitted(model_test1, sqrt(abs(residuals(model_test1)))))
+# Pass, looks relatively flat
+
+# Normality of Errors – Residuals are approximately normally distributed.
+qqnorm(residuals(model_test1))
+# Pass, relatively normal
+```
+Model
+```{r}
+model2 <- lmer(dbh2 ~ comstat + (1 | plot))
+summary(model2)
+
+confint(model2, method = "Wald")
+
+posthoc <- emmeans(model2, pairwise ~ comstat, adjust = "tukey")
+posthoc
+```
+
+1) Report and interpret the results of the linear model. (Note that the output for each 
+  level of comstat will be reported as contrasts of that level in relation to the reference
+  level - refer to "ANCOVA exercise" we did in class a few weeks ago with a similar dataset). 
+  
+The model was set to have a baseline of "suppressed", which results in other levels indicating increases in growth compared to the harshest growing conditions. Codominant (slope = 17.244 ± 1.504, t(319) = 11.462, p < 2e-16), dominant (slope = 29.005 ± 2.549, t(319) = 11.379, p < 2e-16), and intermediate (slope = 3.569 ± 1.561, t(319) = 2.286, p = 0.0229) all show statistically significant differences from baseline. The complete model (dbh2 = 10.870 + 17.244×(C) + 29.005×(D) + 3.569×(I)) was statistically significant (R2 = 0.4404, Adjusted R2 = 0.4352, F(3, 319) = 83.7, p < 2.2e-16) indicating competitive status has an effect on dbh.
+
+
+2) Report the results of the mixed-model, including:
+a) the fixed effects estimates, 
+
+Suppressed was still chosen as the baseline. Codominant (slope = 19.385 ± 1.352, t = 14.336), dominant (slope = 28.947 ± 2.323, t = 12.459), and intermediate (slope = 4.733 ± 1.339, t = 3.535) all show statistically significant differences from the baseline. 
+
+b) the confidence limits, 
+
+The 95% confidence interval for the intercept (suppressed trees) ranged from 6.6 to 16.4. Codominant trees showed an estimated difference of 19.3 cm/year above suppressed trees, with a 95% confidence interval of 16.7 to 22.0. Dominant trees showed an estimated difference of 28.9 cm/year, with a 95% confidence interval of 24.3 to 33.5. Intermediate trees showed an estimated difference of 4.7 cm/year, with a 95% confidence interval of 2.1 to 7.3.
+
+c) the variance explained by the fixed effects and by the random effects, 
+
+The mixed model indicated substantial variation among plots. The plot (random variable) accounted for a variance of 46.1 (SD = 6.7). The residual plot variation, representing within-plot variation, was 70.9 (SD = 8.4). Thus, a notable portion of the total variability in growth rates was explained by differences among plots.
+
+d) the post-hoc comparisons.
+
+The posthoc showed significant differences between all competitive status categories. Suppressed trees grew significantly more slowly than codominant (p < 0.0001), dominant (p < 0.0001), and intermediate trees (p = 0.0027). Codominant trees differed significantly from both dominant trees (p = 0.0001) and intermediate trees (p < 0.0001). Dominant trees also grew significantly faster than intermediate trees (p < 0.0001).
+
+
+3) How did the results of the two models differ? To what extent (if any) did running the mixed model clarify the relationship between the explanatory and response variables?
+
+Both the linear and mixed models both show significant differences between the competitive status categories. The mixed model showed that much of the variation was between plots (variance 46.1 (SD = 6.7)) which indicates differences in the ecology of the plots. This variation could be further explored with more envirnmental variables.

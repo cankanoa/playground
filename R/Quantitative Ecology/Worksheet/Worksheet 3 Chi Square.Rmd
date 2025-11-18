@@ -1,0 +1,137 @@
+---
+title: "Worksheet 3"
+author: "Natalie Graham"
+date: "2025-08-01"
+output: pdf_document
+---
+
+Today we will go over the basics of how to do chi square Goodness of Fit Tests and Two-way contingency tables in R.
+
+Chi Square Goodness of Fit Tests:
+When your data is comprised of counts (frequencies) of categorical variables, hypotheses may be addressed with Chi-square tests. The chi-square goodness of fit test compares the observed frequencies of the levels of a single categorical variable against the expected frequencies (often based on some theoretical ratio). 
+
+In the first example, we want to compare the frequency of seed types (yellow smooth [expected =9/16], yellow wrinkled [3/16], green smooth [3/16], green wrinkled [1/16]) in a sample of 250 seeds relative to a null hypothesis that the sample came from a population that had a 9:3:3:1 ratio. Horray, a genetics Mendelian inheritance example!
+
+#First, create 2 columns and bind them together:
+- recall that the base R function c() will combine values into a vector 
+- cbind is "column bind" to see the result of the two vectors together before we move on
+```{r}
+ c1<-c(152,39,53,6)
+ c2<-c("ys","yw","gs","gw")
+ cbind(c1,c2)
+```
+     c1    c2  
+[1,] "152" "ys"
+[2,] "39"  "yw"
+[3,] "53"  "gs"
+[4,] "6"   "gw"
+
+# Create a dataframe and assign it a name:
+- capital "P" for pea 
+```{r}
+ P<-data.frame(c2,c1)
+ P
+```
+# Xtabs function for creating a contingency table
+It is very helpful to use the xtabs() function to put the dataframe in table format for chi square tests:
+- xtabs() is from the built in "stats" package. It creates a contingency table for you.
+- recall if you ever forgot what a function does just look it up using help. The syntax for help is ?function() so ?xtabs() tells us about the cross tabulation function
+```{r}
+ PX<-(xtabs(c1~c2,P))
+ PX
+```
+
+**Note: The xtabs function likes to reorder your levels alphabetically.** 
+
+# Chi Square Test in R
+Now, we can run the chi square test on the PX table, with the p = argument corresponding to the expected probabilities of each level:
+- Also, check out the R documentation for the Chisq.test in the Stats package by running ?chisq.test() in your Console
+```{r}
+chisq.test(PX, p=c(3/16,1/16,9/16,3/16))
+
+```
+# The p= argument
+If we don’t use the p= argument, the default is that R assumes we are testing for equal probabilities of each level occurring, and in this case makes our results *much more significant*:
+```{r}
+chisq.test(PX) 
+```
+# Reading in a table of data
+And another way would be to save the excel table as below and import into RStudio- then you don’t need to convert to a dataframe or xtabs 
+
+```{r}
+# read in the data
+PeaTable <- read_excel("~/data/PeaTable.xlsx")
+PeaTable
+# perform chi sq test same as above
+chisq.test(PeaTable, p=c(3/16, 1/16,9/16,3/16))
+```
+
+# Check the order of the proportions 
+ gs  gw  ys  yw 
+ 53   6 152  39
+3/16, 1/16, 9/16, 3/16 <<<-- Notice it is not 9:3:3:1 now bc of reordering when you read in the table or did the xtabs function so be careful ...
+- be sure that the order of the expected proportions corresponds to the order in which the observed values are listed on the table.
+
+# Let's make up some more data for testing
+Chi square tests for two-way contingency tables are VERY commonly done. These tables examine the observed vs. expected frequencies for cells within two-way tables (tables in which both columns and rows represent a single categorical variable, each with any number of levels).  First lets practice creating these tables directly from the R command line. 
+
+The data set below looks at whether there is a relationship between “control” and “egg removal” (these will be the column names) on the frequency of malaria in birds. Of 35 “control” birds, 7 had malaria and 28 had no malaria. Of 30 “egg removed” birds, 15 had malaria and 15 did not.
+> As a biology aside: Why would egg removal affect the rate of infection? One hypothesis could be that removing eggs might reduce the birds’ stress levels or alter their behavior in a way that impacts their susceptibility to malaria. For example, birds that are not caring for eggs might have more energy to invest in their immune response, or they might engage in different behaviors that reduce their exposure to malaria-carrying mosquitoes. 
+
+Let’s start by creating the two-way contingency table in R
+```{r}
+# Create the data
+control <- c(7, 28)  # 7 birds with malaria, 28 without
+egg_removed <- c(15, 15)  # 15 birds with malaria, 15 without
+
+# Combine the data into a matrix
+eggdata <- matrix(c(control, egg_removed), nrow = 2, byrow = TRUE)
+
+# Add row and column names
+rownames(eggdata) <- c("Malaria", "No Malaria")
+colnames(eggdata) <- c("Control", "Egg Removed")
+
+# change to table so we can read the row and col names
+eggdata <- as.table(eggdata)
+eggdata
+
+```
+# Run chi square test
+Now, we can run the chi square test on the table. Note: the Yates continuity correction is used when any of the cells have 
+**expected values less than 5**. You can ask for it with the argument corr=T (or not use it with the argument corr =F). How does the p value change with and without the correction??
+```{r}
+# No Yates continuity correction 
+chisq.test(eggdata, corr = F)
+
+# with Yates continuity correction
+chisq.test(eggdata, corr = T)
+```
+
+A couple other ways to create the data in R (same as above but I like to show you different ways to code the same thing)
+# Simply as a matrix (no table needed)
+```{r}
+test1<-matrix(c(7,15,28,15), byrow=TRUE, 2,2)
+test1
+chisq.test(test1)
+```
+# Make a table with cbind (no matrix needed)
+```{r}
+# make two simple named vectors and cbind them together
+r<-c(7,28)
+c<-c(15,15)
+t<-cbind(c,r)
+
+# add the row and column names
+row.names(t)<-c("malaria","no Malaria")
+colnames(t)<-c("control","egg removed")
+
+# make into a table (no matrix in between)
+is.table(t) # FALSE
+t<-as.table(t)
+is.table(t) # TRUE
+
+t
+chisq.test(t)
+```
+
+        

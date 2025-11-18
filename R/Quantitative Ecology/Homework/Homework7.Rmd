@@ -1,0 +1,221 @@
+---
+title: "Homework7"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Question 1
+
+Import data
+```{r}
+library('car')
+library("ggplot2")
+library(MASS)
+library(MuMIn)
+
+
+ds = readxl::read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/loyn.xlsx')
+
+# Response variable
+ABUND <- ds$ABUND
+
+# Predictor variables
+AREA <- ds$AREA
+YR.ISOL <- ds$YR.ISOL
+DIST <- ds$DIST
+LDIST <- ds$LDIST
+GRAZE <- ds$GRAZE
+ALT <- ds$ALT
+
+
+```
+
+Research question
+
+What are the most important factors that influence bird abundance in forest patches?
+
+Statistical method
+
+mutli linear regression
+
+Hypothesis statements
+
+H0: There is no significant relationship between abundance of forest birds and any of these variables: patch area, number of years of isolation, distance to the nearest patch and larger patch, grazing intensity and altitude.
+
+H1: At least one of these variables has a significant relationship with forest bird abundance.
+
+Assumptions
+
+```{r}
+# Linearity – The relationship between predictors and the response variable is linear.
+scatterplotMatrix(~ ABUND+AREA+YR.ISOL+DIST+LDIST+GRAZE+ALT)
+# Test if log will improve assumption
+scatterplotMatrix(~ log1p(ABUND)+log1p(AREA)+log1p(YR.ISOL)+log1p(DIST)+log1p(LDIST)+log1p(GRAZE)+log1p(ALT))
+# Pass, logging variables improve normality and therefor linear relationship. Use a multiplicative model.
+
+# Independence – Observations (and residuals) are independent of each other.
+plot(residuals(lm(log1p(ABUND) ~ log1p(AREA)+log1p(YR.ISOL)+log1p(DIST)+log1p(LDIST)+log1p(GRAZE)+log1p(ALT))))
+# Pass, residuals look good
+
+# Homoscedasticity – The variance of residuals is constant across all fitted values.
+plot((lm(log1p(ABUND) ~ log1p(AREA)+log1p(YR.ISOL)+log1p(DIST)+log1p(LDIST)+log1p(GRAZE)+log1p(ALT))), which = 1)
+# Pass, it looks okay
+
+# Normality of Errors – Residuals are approximately normally distributed.
+qqnorm(residuals(lm(log1p(ABUND) ~ log1p(AREA)+log1p(YR.ISOL)+log1p(DIST)+log1p(LDIST)+log1p(GRAZE)+log1p(ALT))))
+# Pass, they look normal
+
+# No Multicollinearity – Predictor variables are not highly correlated with each other.
+cor(cbind(log1p(ABUND),log1p(AREA),log1p(YR.ISOL),log1p(DIST),log1p(LDIST),log1p(GRAZE),log1p(ALT)))
+# Pass, all below 80%
+
+# No Significant Outliers or Influential Points – Extreme values do not unduly affect the model.
+plot((lm(log1p(ABUND) ~ log1p(AREA)+log1p(YR.ISOL)+log1p(DIST)+log1p(LDIST)+log1p(GRAZE)+log1p(ALT))), which=5)
+# Pass, does not overlap cooks distance
+```
+
+Check reduced models
+
+```{r}
+# All variables
+model1 <- lm(log1p(ABUND) ~ log1p(AREA)+log1p(YR.ISOL)+log1p(DIST)+log1p(LDIST)+log1p(GRAZE)+log1p(ALT))
+
+# Add interaction between area nd years sense grazing
+modal2 <- lm(log1p(ABUND) ~ log1p(AREA)+log1p(YR.ISOL)+log1p(DIST)+log1p(LDIST)+log1p(GRAZE)+log1p(ALT)+log1p(AREA)*log1p(YR.ISOL))
+
+# Only included limited predictors
+model3 <- lm(log1p(ABUND) ~ log1p(AREA)+log1p(YR.ISOL)+log1p(GRAZE))
+
+AIC(model1, modal2, model3)
+# Model 3, with limited predictors, performs the best.
+
+# Check multiple models using stepAIC
+stepAIC(model1)
+# Best model found as: log1p(ABUND) ~ log1p(AREA) + log1p(YR.ISOL) + log1p(ALT)
+```
+
+Test
+
+```{r}
+# Best model
+model_best <- lm(log1p(ABUND) ~ log1p(AREA) + log1p(YR.ISOL) + log1p(ALT))
+plot(model_best)
+summary(model_best)
+```
+
+Results
+
+StepAIC was used to find the best variables to predict bird abundance among these variables: patch area, number of years of isolation, distance to the nearest patch and larger patch, grazing intensity and altitude. The best model was found to be log(ABUND) = -166.6040 + 0.2530 × log(AREA) + 22.0051 × log(YR.ISOL) + 0.4199 × log(ALT). It accounted for 57% of variability of bird abundance (R^2 = 0.5969, adjusted R^2 = 0.5737, F(3, 52) = 25.67, p = 2.509e-10). Area and years sense isolation were significant and altitude was not: log1p(AREA) = 0.2530 ± 0.0468, t(52) = 5.406, p = 1.64e-06; log1p(YR.ISOL) = 22.0051 ± 5.5914, t(52) = 3.935, p = 0.000248; log1p(ALT) = 0.4199 ± 0.2310, t(52) = 1.818, p = 0.074883. We reject our null hypothesis and accept that these three variables significantly predict bird abundance.
+
+
+# Question 2
+
+Import data
+```{r}
+library('car')
+library("ggplot2")
+library(MASS)
+
+ds = readxl::read_excel('/Users/kanoalindiwe/Downloads/Projects/playground/R/Quantitative Ecology/Datasets/ohiamixed.xlsx')
+
+# Response variable
+growth <- ds$`growth rate`
+
+# Predictor variables
+
+plot <- ds$plot
+species <- ds$species
+dbh2 <- as.numeric(ds$dbh2)
+comstat <- factor(ds$comstat)
+```
+
+Research question
+
+Does tree size OR competitive status OR their interaction predict growth rate?
+
+Statistical method
+
+mutli linear regression
+
+Hypothesis statements
+
+H0: There is a significant relationship between growth rates and tree size, competitive status, or their interaction.
+
+H1: There is not a significant relationship between growth rates and tree size, competitive status, or their interaction.
+
+Assumptions
+
+```{r}
+# Test models
+model1 <- lm(growth ~ dbh2 + comstat)
+model2 <- lm(log1p(growth) ~ log1p(dbh2) + comstat + log1p(dbh2)*comstat)
+model3 <- lm(scale(growth) ~ scale(dbh2) + comstat)
+model4 <- lm(sqrt(growth) ~ sqrt(dbh2) + comstat)
+growth.cube <- growth^(1/3)
+dbh2.cube <- dbh2^(1/3)
+model5 <- lm(growth.cube ~ dbh2.cube + comstat)
+# plot(model1)
+# plot(model2)
+# plot(model3)
+# plot(model4)
+# plot(model5)
+
+# Linearity – The relationship between predictors and the response variable is linear.
+scatterplotMatrix(~ growth+dbh2)
+# Test if log will improve assumption
+scatterplotMatrix(~ log1p(growth)+log1p(dbh2))
+# Pass, logging variables improve normality and therefor linear relationship. Use a multiplicative model (model2).
+
+# Independence – Observations (and residuals) are independent of each other.
+# Assumed to be true based on study design
+
+# Homoscedasticity – The variance of residuals is constant across all fitted values.
+plot(model2, which = 1)
+# Pass, it looks okay
+
+# Normality of Errors – Residuals are approximately normally distributed.
+qqnorm(residuals(model2))
+# Fail, as it seems to curve up at the end, and other transformations dont seem to help. We can proceed for the sake of this assignment.
+
+# No Multicollinearity – Predictor variables are not highly correlated with each other.
+cor(cbind(log1p(growth), log1p(dbh2)))
+# Pass, all below 80%
+
+# No Significant Outliers or Influential Points – Extreme values do not unduly affect the model.
+plot(model2, which=5)
+# Pass, does not overlap cooks distance
+```
+
+Check reduced models
+
+```{r}
+model.global <- lm(log1p(growth) ~ log1p(dbh2) + comstat + log1p(dbh2)*comstat, na.action="na.fail")
+
+model.drege<-dredge(model.global)
+head(model.drege, 5)
+summary(model.drege)
+best_model <- model.drege[1]
+best_model
+# Best model has 94% of the weight and second has more than 2 AIC seperation so no model averaging is required. But we can do it for the sake of homework.
+
+# Model averaging
+model.avging<-model.avg(model.drege, subset=TRUE)
+summary(model.avging)
+
+sw(model.avging)
+```
+
+The model selection table ranks all possible models by AIC, showing that the best-supported model (AIC=0, weight=0.94) includes log(dbh2), comstat, and their interaction as key predictors of growth.
+
+The model summary table shows that the best model includes log(AREA), log(YR.ISOL), and log(ALT), explaining 57% of variation in bird abundance (adjusted R2 = 0.57), with area and years since isolation significant predictors.
+
+The averaged model summary table shows that growth increases with dbh2 and varies by comstat, with significant positive effects for comstat and its interaction with dbh2, indicating that dbh2’s influence on growth depends on comstat.
+
+The relative importance table shows that log(dbh2) (1.00) and comstat (0.98) are the strongest predictors of growth, while their interaction (0.94) is slightly less influential but still well supported in the top models.
+
+# Question 3
+
+The study used over 7000 tree-ring records from ~3000 plots across the US Mountain West to test whether declining growth resilience to drought predicts forest mortality. Most species showed decreasing drought resistance and resilience since the 1950s, which was linked to higher stand-level mortality. Growth and resilience together explained about half of mortality variation, showing that reduced resilience reflects physiological decline and can serve as an early warning of die-off. AIC was used for model selection to identify the strongest mortality predictors The authors included about 40 variables and selected the best models based on lowest AIC, favoring simpler models.
+
+
