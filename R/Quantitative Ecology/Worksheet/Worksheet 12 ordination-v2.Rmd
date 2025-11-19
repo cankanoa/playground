@@ -1,0 +1,243 @@
+---
+title: "Ordination"
+output: html_document
+date: "2025-08-01"
+---
+
+Ordination is a collective term for multivariate techniques which summarize a multidimensional
+dataset in such a way that when it is projected onto a low dimensional space, any intrinsic
+pattern the data may possess becomes apparent upon visual inspection (Pielou, 1984).
+
+In ecological terms: Ordination summarizes community data (such as species abundance data:
+samples by species) by producing a low-dimensional ordination space in which
+similar species and samples are plotted close together, and dissimilar species and
+samples are placed far apart. Ideally, dimensions of this low dimensional 
+space will represent important and interpretable environmental gradients.
+
+Ordination techniques are often used in ecology to describe relationships between 
+species composition patterns and the underlying environmental gradients (e.g. what 
+environmental variables structure the community?). Three very important advantages of 
+ordination are that 1) we can determine the relative importance of different gradients, 
+2) the graphical results from most techniques often lead to ready and intuitive 
+interpretations of species-environment relationships, and 3) we can reduce the number
+of potentially corellated dependent variables into one or two principle components which
+can then be used as independent variables in a GLM
+
+Load libraries
+```{r, message = F}
+library(vegan)
+library(ape)
+library(dplyr)
+```
+
+# Load the community dataset which we`ll use in the examples today
+# Open the dataset and look if you can find any patterns
+
+```{r}
+data(varespec)
+View(varespec)
+```
+
+# It is probably very difficult to see any patterns by just looking at the data frame!
+#Below, we will use ordination to arrange samples or species continuously along gradients.
+
+```{r}
+PCA <- rda(varespec, scale = FALSE)
+# Use scale = TRUE if your variables are on different scales (e.g. for abiotic variables).
+# Here, all species are measured on the same scale 
+# So use scale = FALSE
+```
+
+#Can calculate eigenvalues as below:
+Eigenvalues tell us how much of the variance in the data is explained by each principal component. Larger eigenvalues indicate that the corresponding principal component captures a significant amount of the variance.
+```{r}
+head(eigenvals(PCA), 5)
+```
+
+#the summary() function gives lots of info...
+Partitioning of Variance: This section shows the total inertia (variance) and how it's partitioned. Here, both the total and unconstrained variance are 1826, meaning there are no constraints applied.
+
+This section on "Eigenvalues and Contribution to Variance" lists the eigenvalues for each principal component (PC) and their contribution to the total variance. Here are the key points:
+
+Eigenvalue: The eigenvalue for each PC represents the amount of variance that component explains. PC1 has the highest eigenvalue (982.9788), indicating it explains the most variance.
+
+Proportion Explained: This shows the proportion of the total variance explained by each PC. For instance, PC1 explains about 53.84% of the variance, while PC2 explains about 25.43%.
+
+Cumulative Proportion: This is the cumulative proportion of variance explained by the principal components. For example, the first two PCs together explain about 79.27% of the variance, while the first three PCs explain about 86.52%.
+
+Key takeaways...
+The first few principal components (PC1, PC2, and PC3) explain the majority of the variance in the data.
+
+The rest of the components contribute progressively less to the total variance, indicating they capture minor variations or noise.
+```{r}
+summary(PCA)
+```
+
+
+#A screeplot can be used to determine which principle components should be included.
+A scree plot is a visual tool used in principal component analysis (PCA) to help determine the number of principal components to include in a model. Here's a breakdown of the elements and what they signify:
+
+Scree Plot: This plot displays the eigenvalues (which represent the amount of variance explained) of each principal component on the y-axis, against the number of the principal components on the x-axis. The plot often forms a curve, where the point of the most significant slope change (also known as the "elbow") suggests a cutoff for the number of components to keep.
+
+Broken Stick Model: The bstick=TRUE argument adds a reference line based on the broken stick model. This model helps to determine which principal components explain more variance than would be expected by chance. Components with eigenvalues above the broken stick line are typically considered significant.
+
+Type="l": This argument specifies the type of plot. type="l" indicates that the points should be connected with lines, providing a clearer view of the trend in eigenvalues.
+
+#Cutoff point is often where the slope changes the most:
+When interpreting a scree plot:
+
+Look for the "elbow" point where the slope of the curve changes most drastically. This is where the eigenvalues start to level off, indicating that subsequent components add less explanatory power.
+
+Components before this point are usually retained as they capture a significant amount of variance.
+
+By including the broken stick model, it becomes easier to identify which components have substantial eigenvalues compared to random variation.
+```{r}
+screeplot(PCA, bstick=TRUE, type="l", main=NULL)        #note- type = el
+```
+
+# Now plot a bar plot of relative eigenvalues. This is the percentage variance explained by each axis.
+#(The CA stands for Correspondence Analysis)
+# How much of the variance in our dataset is explained by the first principal component?
+```{r}
+barplot(as.vector(PCA$CA$eig)/sum(PCA$CA$eig))
+```
+
+
+# Calculate the percent of variance explained by first two axes
+```{r}
+
+sum((as.vector(PCA$CA$eig)/sum(PCA$CA$eig))[1:2]) # 79%, this is ok.
+# Also try to do it for the first three axes
+```
+# Now, we`ll plot our results with the plot function
+```{r}
+
+plot(PCA)
+plot(PCA, display = "sites", type = "points")
+plot(PCA, display = "species", type = "text")
+```
+
+
+# You can extract the species and site scores on the new PC for further analyses:
+
+```{r}
+ # Site scores
+sitePCA <- PCA$CA$u
+# Species scores
+speciesPCA <- PCA$CA$v 
+```
+
+# In a biplot of a PCA, species' scores are drawn as arrows 
+# that point in the direction of increasing values for that variable
+
+```{r}
+biplot(PCA, choices = c(1,2), type = c("text", "points"), xlim = c(-5,10)) # biplot of axis 1 vs 2
+biplot(PCA, choices = c(1,3), type = c("text","points")) # biplot of axis 1 vs 3
+biplot(PCA, scaling="symmetric")
+
+```
+- The x-axis represents the first principal component (PC1), which explains the most variance in the data.
+- The y-axis represents the second principal component (PC2), which explains the second most variance.
+
+*Position of Points:*
+
+- Each point represents an individual observation or sample from your dataset.
+- The position of each point indicates its score on PC1 and PC2.
+- Points (samples) that cluster together are similar in terms of the variables measured.
+- Points close to the origin (0,0) have average values for the components.
+- Points far from the origin in the direction of a vector have higher values for that variable.
+
+*Direction and Length of Vectors:*
+- Vectors represent the original variables in your dataset.
+- The direction and length of each vector indicate how much each variable contributes to the principal components.
+- Variables that have longer vectors are more influential in explaining the variance captured by the PCs.
+- The angle between vectors tells you about the correlation between variables (smaller angles indicate higher positive correlation).
+- Vectors pointing in similar directions represent variables that are positively correlated.
+- Vectors pointing in opposite directions represent variables that are negatively correlated.
+
+#####################################################################
+
+```{r}
+#Now for a new dataset for you to work on that is comprised of morphological measurements on two species of sparrows (sparrowsPCA).
+#The goal will be to condense the many morphological measurements into a smaller number of principle 
+#components that can then be used to predict species (logistic regression with 2 species). We will
+#use prcomp() from the basic R package. 
+
+library(readr)
+sparrowsPCA <- read_csv("~/stats class/data/SparrowData.csv")
+View(sparrowsPCA)
+
+# prcomp() requires a complete matrix with only finite values
+
+# Drop rows with any missing values
+sparrowsComplete <- sparrowsPCA[complete.cases(sparrowsPCA[, 3:8]), ]
+sparrowPCA1 <- prcomp(sparrowsComplete[, 3:8], scale. = TRUE)
+
+#The plot function here will illustrate how much variance is explained by each axis:
+# scree plot of pc object
+# Y-axis: Variance (or proportion of total variance) explained by each principal component.
+# X-axis: Principal components (PC1, PC2, PC3, etc.).
+# Bar height: How much of the dataset’s total variance is captured by that component.
+plot(sparrowPCA1)
+
+#enter the name of the PCA to see the weights of the variables in each PC axis- (note -all have
+#similar weight, which makes sense as they are morphological variables that are highly #correlated):
+sparrowPCA1
+
+#A biplot of two of the first PC axes is an effective way to represent the multi-dimensional 
+#correlation of the variables:
+biplot(sparrowPCA1)
+
+summary(sparrowPCA1)
+#the function scores() will extract the PC’s for each axis. These can then be incorporated
+#into #the lm or glm 
+scores(sparrowPCA1)
+scores(sparrowPCA1,1:2)
+
+#We can also visualize the data by color-coding the points for each sex. First 
+#though we need to create a factor called sex because sex was previously 
+#being read as a character variable (and color coding only works for factors). 
+# Create a factor for sex from the cleaned dataset
+sex2 <- as.factor(sparrowsComplete$sex)
+
+# Assign colors: red for one sex, blue for the other
+sparrowcol <- c("red", "blue")[sex2]
+
+# Plot the first two principal components, color-coded by sex
+plot(sparrowPCA1$x[, 1:2], col = sparrowcol, pch = 19,
+     xlab = "PC1", ylab = "PC2", main = "PCA of Sparrow Morphology by Sex")
+legend("topright", legend = levels(sex2), col = c("red", "blue"), pch = 19)
+
+
+#Now we can use the PC’s we have created in a logistic regression GLM that models 
+#Sex as a #function of the different PC’s. Make sure the response is a factor!
+# Confirm sex is a factor
+is.factor(sex2)  # Should return TRUE
+# Levels: F M
+
+# Positive coefficients increase the odds of being "M" (male).
+# Negative coefficients increase the odds of being "F" (female)
+
+# compare the AIC scores of the following models
+# Fit logistic regression model using first few PCs
+
+# model 1
+sparrow.glm<-glm(sex2~scores(sparrowPCA1,1),family =binomial, data = sparrowsPCA)
+sparrow.glm
+summary(sparrow.glm)
+
+# model 2
+sparrow.glm2<-glm(sex2~scores(sparrowPCA1,1)+scores(sparrowPCA1,2),family =binomial, data = sparrowsPCA)
+summary(sparrow.glm2)
+
+#model 3
+glm_sex_3 <- glm(sex2 ~ sparrowPCA1$x[, 1] + sparrowPCA1$x[, 2] + sparrowPCA1$x[, 3],
+               family = binomial)
+summary(glm_sex_3)
+
+sparrow.glmall<-glm(sex2~scores(sparrowPCA1),family =binomial, data = sparrowsPCA)
+summary(sparrow.glmall)
+
+# interpretation: sex in these sparrows is strongly predicted by a combination of size, shape
+
+```
